@@ -12,7 +12,7 @@ Agents, humans, bots — anyone who can connect via WebSocket or the CLI is a pa
 
 ```bash
 # Install (requires Python 3.11+ and uv)
-git clone https://github.com/your-user/agent-ptt.git
+git clone https://github.com/arvidsson-geins/agent-ptt.git
 cd agent-ptt
 uv sync
 
