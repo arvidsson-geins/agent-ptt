@@ -7,26 +7,28 @@ so configs are portable between the two apps.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
 from sqlalchemy import JSON, Column, DateTime, String, Text
 from sqlalchemy.orm import DeclarativeBase
 
-
 # ---------------------------------------------------------------------------
 # SQLAlchemy ORM base
 # ---------------------------------------------------------------------------
 
+
 class Base(DeclarativeBase):
     """SQLAlchemy declarative base for all ORM models."""
+
     pass
 
 
 # ---------------------------------------------------------------------------
 # SQLAlchemy ORM models (persisted)
 # ---------------------------------------------------------------------------
+
 
 class VoiceProfileDB(Base):
     """Persisted voice profile — survives server restart."""
@@ -38,7 +40,7 @@ class VoiceProfileDB(Base):
     engine = Column(String, nullable=False, default="edge-tts")
     # Engine-specific settings: pitch, speed, language, etc.
     settings = Column(JSON, nullable=False, default=dict)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
 class ParticipantKeyDB(Base):
@@ -50,7 +52,7 @@ class ParticipantKeyDB(Base):
     handle = Column(String, nullable=False)
     voice_id = Column(String, nullable=True)
     channel_id = Column(String, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
 class MessageDB(Base):
@@ -63,12 +65,13 @@ class MessageDB(Base):
     sender_key = Column(String, nullable=False)
     handle = Column(String, nullable=False)
     text = Column(Text, nullable=False)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
 # ---------------------------------------------------------------------------
 # Pydantic schemas (API / transport)
 # ---------------------------------------------------------------------------
+
 
 class VoiceProfile(BaseModel):
     """Voice profile — OmniVoice Studio compatible shape."""
@@ -77,7 +80,7 @@ class VoiceProfile(BaseModel):
     display_name: str
     engine: str = "edge-tts"
     settings: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = {"from_attributes": True}
 
@@ -89,7 +92,7 @@ class ParticipantKey(BaseModel):
     handle: str
     voice_id: str | None = None
     channel_id: str | None = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = {"from_attributes": True}
 
@@ -102,7 +105,7 @@ class Message(BaseModel):
     sender_key: str
     handle: str
     text: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = {"from_attributes": True}
 
@@ -114,4 +117,4 @@ class Channel(BaseModel):
     name: str
     participants: dict[str, ParticipantKey] = Field(default_factory=dict)
     messages: list[Message] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

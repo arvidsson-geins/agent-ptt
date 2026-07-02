@@ -19,7 +19,14 @@ uv run agent-ptt voices                  # list available TTS voices
 uv run agent-ptt config                  # show current session state
 ```
 
-There are no automated tests, no linter config, and no CI. Testing is manual/multi-terminal — see docs/testing.md. Verifying changes end-to-end requires a running server plus a second terminal acting as a client (and audible speaker output for the TTS path).
+```bash
+uv run pytest                            # run the test suite
+uv run pytest tests/test_api.py -k name  # run a single test file / test
+uv run ruff check .                      # lint (auto-fix with --fix)
+uv run ruff format .                     # format
+```
+
+Run pytest and ruff before committing. Tests fake out TTS and speaker playback (see tests/conftest.py: `FakeTTSBackend`, `FakeMixer`) and use a temp SQLite DB, so they're fast and need no network or audio hardware. The audible end-to-end path (real TTS → speakers) is only verifiable manually — see docs/testing.md. There is no CI.
 
 ## Architecture
 

@@ -7,9 +7,9 @@ to any connected WebSocket spectator listeners.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import io
 import logging
-from collections import defaultdict
 
 import numpy as np
 
@@ -54,10 +54,8 @@ class AudioMixer:
 
     def unregister_stream_listener(self, q: asyncio.Queue[bytes]) -> None:
         """Remove a WebSocket spectator listener."""
-        try:
+        with contextlib.suppress(ValueError):
             self._stream_listeners.remove(q)
-        except ValueError:
-            pass
 
     async def _broadcast_to_listeners(self, audio_bytes: bytes) -> None:
         """Send audio chunk to all registered WebSocket stream listeners."""
@@ -84,10 +82,8 @@ class AudioMixer:
 
         while self._running:
             try:
-                audio_bytes, handle = await asyncio.wait_for(
-                    self._queue.get(), timeout=1.0
-                )
-            except asyncio.TimeoutError:
+                audio_bytes, handle = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break

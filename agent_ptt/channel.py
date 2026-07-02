@@ -7,8 +7,6 @@ keys are persisted via the database layer.
 from __future__ import annotations
 
 import asyncio
-import uuid
-from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 

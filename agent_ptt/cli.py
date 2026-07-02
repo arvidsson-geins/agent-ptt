@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
-from typing import Optional
 
 import httpx
 import typer
@@ -140,9 +138,7 @@ def channel_history(channel_id: str = typer.Argument(help="Channel ID")):
                 ts = ts.split("T")[1][:8]
             handle = msg.get("handle", "?")
             text = msg.get("text", "")
-            rprint(
-                f"[dim]{ts}[/dim] [bold cyan]{handle}[/bold cyan]: {text}"
-            )
+            rprint(f"[dim]{ts}[/dim] [bold cyan]{handle}[/bold cyan]: {text}")
     else:
         rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
 
@@ -151,13 +147,12 @@ def channel_history(channel_id: str = typer.Argument(help="Channel ID")):
 # Join / Leave / Say
 # ---------------------------------------------------------------------------
 
+
 @app.command("join")
 def join(
     channel_id: str = typer.Argument(help="Channel ID to join"),
     handle: str = typer.Option(..., "--handle", "-h", help="Your display name"),
-    voice: str = typer.Option(
-        "en-US-AriaNeural", "--voice", "-v", help="Voice ID for TTS"
-    ),
+    voice: str = typer.Option("en-US-AriaNeural", "--voice", "-v", help="Voice ID for TTS"),
 ):
     """Join a channel with a handle and voice."""
     base = _get_base_url()
@@ -222,6 +217,7 @@ def say(text: str = typer.Argument(help="Message to send")):
     # Send via REST (for simplicity — WebSocket mode is for live agent connections)
     # We'll post a message via the WebSocket protocol using httpx
     import asyncio
+
     import websockets
 
     async def _send():
@@ -238,7 +234,7 @@ def say(text: str = typer.Argument(help="Message to send")):
                         f"[bold cyan]{data.get('handle', '?')}[/bold cyan]: "
                         f"{data.get('text', '')}"
                     )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 rprint(f"[bold green]✅ Sent:[/bold green] {text}")
 
     asyncio.run(_send())
@@ -247,6 +243,7 @@ def say(text: str = typer.Argument(help="Message to send")):
 # ---------------------------------------------------------------------------
 # Listen (spectator mode)
 # ---------------------------------------------------------------------------
+
 
 @app.command("listen")
 def listen(
@@ -261,15 +258,16 @@ def listen(
         import websockets
 
         uri = f"ws://{base.replace('http://', '')}/channels/{channel_id}/audio"
-        rprint(f"[bold green]🎧 Listening to channel...[/bold green] (Ctrl+C to stop)")
+        rprint("[bold green]🎧 Listening to channel...[/bold green] (Ctrl+C to stop)")
 
         try:
             async with websockets.connect(uri) as ws:
                 try:
-                    import sounddevice as sd
-                    import numpy as np
                     import io
                     import wave
+
+                    import numpy as np
+                    import sounddevice as sd
 
                     while True:
                         audio_bytes = await ws.recv()
@@ -300,6 +298,7 @@ def listen(
 # ---------------------------------------------------------------------------
 # Voices
 # ---------------------------------------------------------------------------
+
 
 @app.command("voices")
 def voices(
@@ -339,11 +338,10 @@ def voices(
 # Config
 # ---------------------------------------------------------------------------
 
+
 @app.command("config")
 def config(
-    server_url: str = typer.Option(
-        None, "--server", "-s", help="Set server URL"
-    ),
+    server_url: str = typer.Option(None, "--server", "-s", help="Set server URL"),
 ):
     """View or update configuration."""
     session = _load_session()

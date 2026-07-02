@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 
@@ -12,7 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from agent_ptt import channel as ch
-from agent_ptt.audio import get_mixer, remove_mixer
+from agent_ptt.audio import get_mixer
 from agent_ptt.db import get_db, init_db
 from agent_ptt.models import Message, VoiceProfile
 from agent_ptt.tts import get_backend
@@ -70,9 +71,7 @@ async def _tts_worker(channel_id: str) -> None:
 def _start_tts_worker(channel_id: str) -> None:
     """Start a TTS worker for a channel if not already running."""
     if channel_id not in _tts_tasks or _tts_tasks[channel_id].done():
-        _tts_tasks[channel_id] = asyncio.create_task(
-            _tts_worker(channel_id)
-        )
+        _tts_tasks[channel_id] = asyncio.create_task(_tts_worker(channel_id))
 
 
 def _stop_tts_worker(channel_id: str) -> None:
@@ -85,6 +84,7 @@ def _stop_tts_worker(channel_id: str) -> None:
 # ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -114,6 +114,7 @@ app = FastAPI(
 # Request schemas
 # ---------------------------------------------------------------------------
 
+
 class CreateChannelRequest(BaseModel):
     name: str
 
@@ -130,6 +131,7 @@ class SendMessageRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # REST endpoints
 # ---------------------------------------------------------------------------
+
 
 @app.post("/channels")
 async def create_channel(req: CreateChannelRequest):
@@ -195,6 +197,7 @@ async def list_voices(engine: str = "edge-tts"):
 # WebSocket: agent communication
 # ---------------------------------------------------------------------------
 
+
 @app.websocket("/channels/{channel_id}/ws")
 async def agent_websocket(
     websocket: WebSocket,
@@ -227,10 +230,14 @@ async def agent_websocket(
     handle = participant.handle if participant else "anonymous"
 
     # Announce join
-    await _broadcast_to_channel(channel_id, {
-        "type": "system",
-        "text": f"{handle} joined the channel",
-    }, exclude=websocket)
+    await _broadcast_to_channel(
+        channel_id,
+        {
+            "type": "system",
+            "text": f"{handle} joined the channel",
+        },
+        exclude=websocket,
+    )
 
     # Get a DB session for message persistence
     db = next(get_db())
@@ -244,13 +251,16 @@ async def agent_websocket(
                 if text.strip():
                     msg = await ch.send_message(key, text, db=db)
                     if msg:
-                        await _broadcast_to_channel(channel_id, {
-                            "type": "message",
-                            "handle": msg.handle,
-                            "text": msg.text,
-                            "message_id": msg.message_id,
-                            "timestamp": msg.timestamp.isoformat(),
-                        })
+                        await _broadcast_to_channel(
+                            channel_id,
+                            {
+                                "type": "message",
+                                "handle": msg.handle,
+                                "text": msg.text,
+                                "message_id": msg.message_id,
+                                "timestamp": msg.timestamp.isoformat(),
+                            },
+                        )
     except WebSocketDisconnect:
         pass
     except Exception as e:
@@ -258,16 +268,17 @@ async def agent_websocket(
     finally:
         db.close()
         if channel_id in _ws_clients:
-            try:
+            with contextlib.suppress(ValueError):
                 _ws_clients[channel_id].remove(websocket)
-            except ValueError:
-                pass
 
         # Announce leave
-        await _broadcast_to_channel(channel_id, {
-            "type": "system",
-            "text": f"{handle} left the channel",
-        })
+        await _broadcast_to_channel(
+            channel_id,
+            {
+                "type": "system",
+                "text": f"{handle} left the channel",
+            },
+        )
 
 
 async def _broadcast_to_channel(
@@ -288,15 +299,14 @@ async def _broadcast_to_channel(
             dead.append(ws)
 
     for ws in dead:
-        try:
+        with contextlib.suppress(ValueError):
             clients.remove(ws)
-        except ValueError:
-            pass
 
 
 # ---------------------------------------------------------------------------
 # WebSocket: spectator audio stream
 # ---------------------------------------------------------------------------
+
 
 @app.websocket("/channels/{channel_id}/audio")
 async def spectator_audio_stream(websocket: WebSocket, channel_id: str):

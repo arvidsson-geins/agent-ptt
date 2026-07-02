@@ -1,11 +1,27 @@
 # Agent PTT — Testing Guide
 
-## Prerequisites
+## Automated Tests
+
+```bash
+uv sync                                  # installs dev dependencies (pytest, ruff)
+uv run pytest                            # run the full suite
+uv run pytest tests/test_api.py -k name  # run a single file or test
+uv run ruff check .                      # lint
+uv run ruff format .                     # format
+```
+
+The suite in `tests/` covers the channel manager, data models, TTS registry, audio mixer bookkeeping, and all REST + WebSocket endpoints. TTS synthesis and speaker playback are faked (`tests/conftest.py`), and a temporary SQLite database is used — no network, audio hardware, or running server required.
+
+What automated tests **cannot** cover is the audible path: real edge-tts synthesis and actual speaker output. Use the manual walkthrough below for that.
+
+## Manual Testing
+
+### Prerequisites
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) installed
 
-## Setup
+### Setup
 
 ```bash
 cd ~/Documents/Dev/projects/agent-ptt

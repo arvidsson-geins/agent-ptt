@@ -7,7 +7,6 @@ are portable between the two apps.
 from __future__ import annotations
 
 import asyncio
-import io
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -167,10 +166,7 @@ def get_backend(engine: str = "edge-tts") -> TTSBackend:
     """Get a TTS backend by engine name."""
     backend = _BACKENDS.get(engine)
     if backend is None:
-        raise ValueError(
-            f"Unknown TTS engine '{engine}'. "
-            f"Available: {list(_BACKENDS.keys())}"
-        )
+        raise ValueError(f"Unknown TTS engine '{engine}'. Available: {list(_BACKENDS.keys())}")
     return backend
 
 
