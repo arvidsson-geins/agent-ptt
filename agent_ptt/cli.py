@@ -440,6 +440,87 @@ def voice_delete(voice_id: str = typer.Argument(help="Voice profile ID")):
 
 
 # ---------------------------------------------------------------------------
+# Model management (local neural TTS)
+# ---------------------------------------------------------------------------
+
+model_app = typer.Typer(help="Local TTS model management (omnivoice extra)")
+app.add_typer(model_app, name="model")
+
+_EXTRA_HINT = "Install the omnivoice extra first: [cyan]uv sync --extra omnivoice[/cyan]"
+
+
+@model_app.command("status")
+def model_status():
+    """Show whether the OmniVoice engine and model checkpoint are ready."""
+    from agent_ptt.modelcache import (
+        DEFAULT_CHECKPOINT,
+        format_size,
+        get_cached_model,
+        hub_available,
+    )
+    from agent_ptt.tts import has_backend
+
+    engine_ready = has_backend("omnivoice")
+    engine_state = "[green]installed[/green]" if engine_ready else "[red]not installed[/red]"
+    rprint(f"Engine:     omnivoice {engine_state}")
+
+    if not hub_available():
+        rprint(f"Model:      [red]unknown[/red] — {_EXTRA_HINT}")
+        raise typer.Exit(1)
+
+    cached = get_cached_model(DEFAULT_CHECKPOINT)
+    if cached:
+        rprint(f"Model:      [green]cached[/green] {DEFAULT_CHECKPOINT}")
+        rprint(f"Size:       {format_size(cached.size_bytes)} ({cached.nb_files} files)")
+        rprint(f"Path:       [dim]{cached.path}[/dim]")
+    else:
+        rprint(f"Model:      [yellow]not downloaded[/yellow] {DEFAULT_CHECKPOINT}")
+        rprint("Run [cyan]agent-ptt model download[/cyan] to fetch it (~2.4 GB),")
+        rprint("or it will download automatically on first synthesis.")
+
+
+@model_app.command("download")
+def model_download(
+    checkpoint: str = typer.Option(None, "--checkpoint", "-c", help="HF repo ID to download"),
+):
+    """Pre-download the OmniVoice model so first synthesis doesn't block."""
+    from agent_ptt.modelcache import DEFAULT_CHECKPOINT, download_model, hub_available
+
+    if not hub_available():
+        rprint(f"[bold red]❌ huggingface_hub not available.[/bold red] {_EXTRA_HINT}")
+        raise typer.Exit(1)
+
+    repo_id = checkpoint or DEFAULT_CHECKPOINT
+    rprint(f"[bold green]⬇️  Downloading[/bold green] {repo_id} (resumes if partial)...")
+    path = download_model(repo_id)
+    rprint(f"[bold green]✅ Model ready:[/bold green] [dim]{path}[/dim]")
+
+
+@model_app.command("list")
+def model_list():
+    """List models in the local HuggingFace cache."""
+    from agent_ptt.modelcache import format_size, hub_available, list_cached_models
+
+    if not hub_available():
+        rprint(f"[bold red]❌ huggingface_hub not available.[/bold red] {_EXTRA_HINT}")
+        raise typer.Exit(1)
+
+    models = list_cached_models()
+    if not models:
+        rprint("[dim]No models in the local HuggingFace cache[/dim]")
+        return
+
+    table = Table(title="Cached Models (~/.cache/huggingface)")
+    table.add_column("Repo ID", style="cyan")
+    table.add_column("Size", justify="right")
+    table.add_column("Files", justify="right")
+
+    for m in models:
+        table.add_row(m.repo_id, format_size(m.size_bytes), str(m.nb_files))
+    console.print(table)
+
+
+# ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 

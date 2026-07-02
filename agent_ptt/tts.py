@@ -163,13 +163,36 @@ _BACKENDS: dict[str, TTSBackend] = {
 }
 
 
+_optional_backends_checked = False
+
+
+def _ensure_optional_backends() -> None:
+    """Register optional backends on first registry access.
+
+    Done lazily (not at import time) so agent_ptt.engines.omnivoice can
+    import TTSBackend from this module without a circular import.
+    """
+    global _optional_backends_checked
+    if _optional_backends_checked:
+        return
+    _optional_backends_checked = True
+
+    # Local neural TTS — present only with `uv sync --extra omnivoice`
+    if importlib.util.find_spec("omnivoice") is not None:
+        from agent_ptt.engines.omnivoice import OmniVoiceTTSBackend
+
+        _BACKENDS["omnivoice"] = OmniVoiceTTSBackend()
+
+
 def has_backend(engine: str) -> bool:
     """Check whether a TTS backend is registered."""
+    _ensure_optional_backends()
     return engine in _BACKENDS
 
 
 def get_backend(engine: str = "edge-tts") -> TTSBackend:
     """Get a TTS backend by engine name."""
+    _ensure_optional_backends()
     backend = _BACKENDS.get(engine)
     if backend is None:
         raise ValueError(f"Unknown TTS engine '{engine}'. Available: {list(_BACKENDS.keys())}")
@@ -179,11 +202,3 @@ def get_backend(engine: str = "edge-tts") -> TTSBackend:
 def register_backend(name: str, backend: TTSBackend) -> None:
     """Register a custom TTS backend."""
     _BACKENDS[name] = backend
-
-
-# Optional local neural TTS — registered only when the omnivoice extra
-# is installed (uv sync --extra omnivoice)
-if importlib.util.find_spec("omnivoice") is not None:
-    from agent_ptt.engines.omnivoice import OmniVoiceTTSBackend
-
-    register_backend("omnivoice", OmniVoiceTTSBackend())

@@ -97,19 +97,26 @@ agent-ptt channel history cd6a64f1-a572-4e7e-9576-4e3b5acd029d
 Join a channel with a handle and voice.
 
 ```bash
-agent-ptt join CHANNEL_ID --handle NAME --voice VOICE_ID
+agent-ptt join CHANNEL_ID --handle NAME [--voice VOICE_ID]
 ```
 
 | Argument/Option | Required | Default | Description |
 |-----------------|----------|---------|-------------|
 | `CHANNEL_ID` | yes | — | UUID of the channel to join |
 | `--handle`, `-h` | yes | — | Your display name |
-| `--voice`, `-v` | no | `en-US-AriaNeural` | Voice ID for TTS |
+| `--voice`, `-v` | no | auto-designed | Voice ID for TTS: an engine voice name or a stored profile ID |
 
-**Example:**
+Omit `--voice` to get a deterministic voice designed from your handle and pinned in the database — the same handle always sounds the same across sessions.
+
+**Examples:**
 ```bash
 agent-ptt join cd6a64f1-... --handle "Claude" --voice "en-US-GuyNeural"
 # ✅ Joined as [Claude]
+#    Key: 1b71a976-0cab-48f5-9ea7-a1469c43b286
+
+agent-ptt join cd6a64f1-... --handle "Claude"
+# ✅ Joined as [Claude]
+#    Voice: auto-designed {"voice": "en-GB-RyanNeural", "rate": "+5%", "pitch": "-8Hz"}
 #    Key: 1b71a976-0cab-48f5-9ea7-a1469c43b286
 ```
 
@@ -187,12 +194,87 @@ agent-ptt voices [--engine ENGINE]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--engine` | `edge-tts` | TTS engine to query (`edge-tts` or `system`) |
+| `--engine` | `edge-tts` | TTS engine to query (`edge-tts`, `system`, or `omnivoice`) |
 
 **Example:**
 ```bash
 agent-ptt voices
 # Shows a table of English edge-tts voices with ID, name, locale, gender
+
+agent-ptt voices --engine omnivoice
+# Shows the six built-in instruct-based archetypes
+```
+
+---
+
+## Voice Profiles
+
+Stored voice profiles live in the database and can be referenced by ID when joining. See [Voice Profiles](voices.md) for the settings schema per engine.
+
+### `agent-ptt voice list`
+
+```bash
+agent-ptt voice list [--engine ENGINE]
+```
+
+Table of stored profiles (ID, name, engine, settings). `--engine`/`-e` filters.
+
+### `agent-ptt voice show`
+
+```bash
+agent-ptt voice show VOICE_ID
+```
+
+Print one stored profile as JSON.
+
+### `agent-ptt voice save`
+
+```bash
+agent-ptt voice save --id ID --name NAME [--engine ENGINE] [--settings JSON]
+```
+
+Create or update a profile. Example:
+
+```bash
+agent-ptt voice save --id narrator --name "Epic Narrator" \
+  --engine omnivoice --settings '{"instruct": "male, middle-aged, american accent, low pitch"}'
+```
+
+### `agent-ptt voice delete`
+
+```bash
+agent-ptt voice delete VOICE_ID
+```
+
+---
+
+## Model Management
+
+Requires the omnivoice extra (`uv sync --extra omnivoice`); the commands tell you so if it's missing.
+
+### `agent-ptt model status`
+
+```bash
+agent-ptt model status
+# Engine:     omnivoice installed
+# Model:      cached k2-fsa/OmniVoice
+# Size:       3.0 GB (13 files)
+# Path:       ~/.cache/huggingface/hub/models--k2-fsa--OmniVoice
+```
+
+### `agent-ptt model download`
+
+Pre-download the OmniVoice checkpoint so the first `say` doesn't block for minutes. Resumes partial downloads.
+
+```bash
+agent-ptt model download [--checkpoint HF_REPO_ID]
+```
+
+### `agent-ptt model list`
+
+```bash
+agent-ptt model list
+# Table of all models in the local HuggingFace cache with sizes
 ```
 
 ---
