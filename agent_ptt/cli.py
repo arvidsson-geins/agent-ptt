@@ -335,6 +335,98 @@ def voices(
 
 
 # ---------------------------------------------------------------------------
+# Voice profiles
+# ---------------------------------------------------------------------------
+
+voice_app = typer.Typer(help="Voice profile management")
+app.add_typer(voice_app, name="voice")
+
+
+@voice_app.command("list")
+def voice_list(
+    engine: str = typer.Option(None, "--engine", "-e", help="Filter by TTS engine"),
+):
+    """List stored voice profiles."""
+    base = _get_base_url()
+    params = {"engine": engine} if engine else {}
+    resp = httpx.get(f"{base}/voices/profiles", params=params)
+    if resp.status_code == 200:
+        profiles = resp.json()
+        if not profiles:
+            rprint("[dim]No stored voice profiles[/dim]")
+            return
+
+        table = Table(title="Stored Voice Profiles")
+        table.add_column("Voice ID", style="cyan")
+        table.add_column("Name")
+        table.add_column("Engine")
+        table.add_column("Settings", style="dim")
+
+        for p in profiles:
+            table.add_row(
+                p["voice_id"],
+                p["display_name"],
+                p["engine"],
+                json.dumps(p.get("settings", {})),
+            )
+        console.print(table)
+    else:
+        rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
+
+
+@voice_app.command("show")
+def voice_show(voice_id: str = typer.Argument(help="Voice profile ID")):
+    """Show a stored voice profile."""
+    base = _get_base_url()
+    resp = httpx.get(f"{base}/voices/profiles/{voice_id}")
+    if resp.status_code == 200:
+        rprint(json.dumps(resp.json(), indent=2, default=str))
+    else:
+        rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
+
+
+@voice_app.command("save")
+def voice_save(
+    voice_id: str = typer.Option(..., "--id", help="Voice profile ID"),
+    name: str = typer.Option(..., "--name", "-n", help="Display name"),
+    engine: str = typer.Option("edge-tts", "--engine", "-e", help="TTS engine"),
+    settings: str = typer.Option("{}", "--settings", "-s", help="Engine settings as JSON"),
+):
+    """Create or update a voice profile."""
+    try:
+        settings_dict = json.loads(settings)
+    except json.JSONDecodeError as e:
+        rprint(f"[bold red]❌ Invalid --settings JSON:[/bold red] {e}")
+        raise typer.Exit(1) from e
+
+    base = _get_base_url()
+    resp = httpx.post(
+        f"{base}/voices/profiles",
+        json={
+            "voice_id": voice_id,
+            "display_name": name,
+            "engine": engine,
+            "settings": settings_dict,
+        },
+    )
+    if resp.status_code == 200:
+        rprint(f"[bold green]✅ Voice profile saved:[/bold green] {voice_id}")
+    else:
+        rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
+
+
+@voice_app.command("delete")
+def voice_delete(voice_id: str = typer.Argument(help="Voice profile ID")):
+    """Delete a stored voice profile."""
+    base = _get_base_url()
+    resp = httpx.delete(f"{base}/voices/profiles/{voice_id}")
+    if resp.status_code == 200:
+        rprint(f"[bold green]✅ Voice profile deleted:[/bold green] {voice_id}")
+    else:
+        rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
+
+
+# ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 

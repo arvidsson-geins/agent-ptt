@@ -60,6 +60,66 @@ def test_delete(db_session):
     assert delete_voice_profile("narrator", db_session) is False
 
 
+# ---------------------------------------------------------------------------
+# REST endpoints
+# ---------------------------------------------------------------------------
+
+
+def _profile_payload(voice_id="narrator", engine="edge-tts"):
+    return {
+        "voice_id": voice_id,
+        "display_name": voice_id.title(),
+        "engine": engine,
+        "settings": {"voice": "en-US-GuyNeural"},
+    }
+
+
+def test_api_save_and_get_profile(client, db_session):
+    resp = client.post("/voices/profiles", json=_profile_payload())
+    assert resp.status_code == 200
+    assert resp.json()["voice_id"] == "narrator"
+
+    resp = client.get("/voices/profiles/narrator")
+    assert resp.status_code == 200
+    assert resp.json()["settings"] == {"voice": "en-US-GuyNeural"}
+
+
+def test_api_get_missing_profile(client, db_session):
+    assert client.get("/voices/profiles/nonexistent").status_code == 404
+
+
+def test_api_save_is_upsert(client, db_session):
+    client.post("/voices/profiles", json=_profile_payload())
+    updated = _profile_payload()
+    updated["display_name"] = "Epic Narrator"
+    client.post("/voices/profiles", json=updated)
+
+    profiles = client.get("/voices/profiles").json()
+    assert len(profiles) == 1
+    assert profiles[0]["display_name"] == "Epic Narrator"
+
+
+def test_api_list_profiles_with_engine_filter(client, db_session):
+    client.post("/voices/profiles", json=_profile_payload("a", engine="edge-tts"))
+    client.post("/voices/profiles", json=_profile_payload("b", engine="omnivoice"))
+
+    assert len(client.get("/voices/profiles").json()) == 2
+    filtered = client.get("/voices/profiles", params={"engine": "omnivoice"}).json()
+    assert [p["voice_id"] for p in filtered] == ["b"]
+
+
+def test_api_delete_profile(client, db_session):
+    client.post("/voices/profiles", json=_profile_payload())
+    assert client.delete("/voices/profiles/narrator").status_code == 200
+    assert client.get("/voices/profiles/narrator").status_code == 404
+    assert client.delete("/voices/profiles/narrator").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# TTS pipeline resolution
+# ---------------------------------------------------------------------------
+
+
 def test_tts_worker_uses_stored_profile(client, db_session, fake_tts):
     """A message from a participant whose voice_id matches a stored profile
     must be synthesized with that profile's engine and settings."""

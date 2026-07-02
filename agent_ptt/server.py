@@ -17,7 +17,12 @@ from agent_ptt.audio import get_mixer
 from agent_ptt.db import SessionLocal, get_db, init_db
 from agent_ptt.models import Message, VoiceProfile
 from agent_ptt.tts import get_backend
-from agent_ptt.voices import get_voice_profile
+from agent_ptt.voices import (
+    delete_voice_profile,
+    get_voice_profile,
+    list_voice_profiles,
+    save_voice_profile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +203,35 @@ async def list_voices(engine: str = "edge-tts"):
     backend = get_backend(engine)
     voices = await backend.list_voices()
     return [v.model_dump() for v in voices]
+
+
+@app.post("/voices/profiles")
+async def save_profile(profile: VoiceProfile, db: Session = Depends(get_db)):
+    """Create or update a stored voice profile."""
+    return save_voice_profile(profile, db).model_dump()
+
+
+@app.get("/voices/profiles")
+async def list_profiles(engine: str | None = None, db: Session = Depends(get_db)):
+    """List stored voice profiles, optionally filtered by engine."""
+    return [p.model_dump() for p in list_voice_profiles(db, engine=engine)]
+
+
+@app.get("/voices/profiles/{voice_id}")
+async def get_profile(voice_id: str, db: Session = Depends(get_db)):
+    """Get a stored voice profile by ID."""
+    profile = get_voice_profile(voice_id, db)
+    if profile is None:
+        return JSONResponse({"error": "Voice profile not found"}, status_code=404)
+    return profile.model_dump()
+
+
+@app.delete("/voices/profiles/{voice_id}")
+async def delete_profile(voice_id: str, db: Session = Depends(get_db)):
+    """Delete a stored voice profile."""
+    if not delete_voice_profile(voice_id, db):
+        return JSONResponse({"error": "Voice profile not found"}, status_code=404)
+    return {"status": "deleted"}
 
 
 # ---------------------------------------------------------------------------
