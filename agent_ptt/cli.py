@@ -439,6 +439,137 @@ def voice_delete(voice_id: str = typer.Argument(help="Voice profile ID")):
         rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
 
 
+def _normalize_instruct_item(value: str, valid: list[str], suffix: str = "") -> str:
+    """Validate one instruct item against the model vocabulary.
+
+    Accepts shorthand ("british" for "british accent") via the suffix.
+    """
+    item = value.strip().lower()
+    if suffix and not item.endswith(suffix):
+        item = f"{item} {suffix}"
+    if item not in valid:
+        rprint(f"[bold red]❌ Invalid value:[/bold red] {escape(value)}")
+        rprint(f"   Valid options: {', '.join(v.removesuffix(f' {suffix}') for v in valid)}")
+        raise typer.Exit(1)
+    return item
+
+
+@voice_app.command("design")
+def voice_design(
+    name: str = typer.Option(..., "--name", "-n", help="Display name for the voice"),
+    voice_id: str = typer.Option(None, "--id", help="Profile ID (default: slug of the name)"),
+    gender: str = typer.Option(None, "--gender", "-g", help="male | female"),
+    age: str = typer.Option(
+        None, "--age", "-a", help="teenager | young adult | middle-aged | elderly"
+    ),
+    accent: str = typer.Option(None, "--accent", help="e.g. british, american, australian"),
+    pitch: str = typer.Option(
+        None, "--pitch", "-p", help="very low | low | moderate | high | very high"
+    ),
+    whisper: bool = typer.Option(False, "--whisper", help="Whispering voice"),
+):
+    """Design an OmniVoice voice from attributes and save it as a profile."""
+    from agent_ptt.voicedesign import ACCENTS, AGES, GENDERS, PITCHES
+
+    items = []
+    if gender:
+        items.append(_normalize_instruct_item(gender, GENDERS))
+    if age:
+        items.append(_normalize_instruct_item(age, AGES))
+    if accent:
+        items.append(_normalize_instruct_item(accent, ACCENTS, suffix="accent"))
+    if pitch:
+        items.append(_normalize_instruct_item(pitch, PITCHES, suffix="pitch"))
+    if whisper:
+        items.append("whisper")
+
+    if not items:
+        rprint(
+            "[bold red]❌ Nothing to design.[/bold red] "
+            "Provide at least one of --gender/--age/--accent/--pitch/--whisper"
+        )
+        raise typer.Exit(1)
+
+    instruct = ", ".join(items)
+    profile_id = voice_id or name.strip().lower().replace(" ", "-")
+
+    base = _get_base_url()
+    resp = httpx.post(
+        f"{base}/voices/profiles",
+        json={
+            "voice_id": profile_id,
+            "display_name": name,
+            "engine": "omnivoice",
+            "settings": {"instruct": instruct},
+        },
+    )
+    if resp.status_code == 200:
+        rprint(f"[bold green]🎨 Voice designed:[/bold green] {profile_id}")
+        rprint(f"   Instruct: [cyan]{escape(instruct)}[/cyan]")
+        rprint(f"   Preview:  [dim]agent-ptt voice preview {profile_id}[/dim]")
+        rprint(
+            f"   Use it:   [dim]agent-ptt join <channel-id> --handle You --voice {profile_id}[/dim]"
+        )
+    else:
+        rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
+
+
+def _play_audio_bytes(audio_bytes: bytes) -> None:
+    """Play WAV (or MP3-fallback) audio bytes through the local speakers."""
+    import io
+    import wave
+
+    import numpy as np
+    import sounddevice as sd
+
+    try:
+        with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
+            frames = wf.readframes(wf.getnframes())
+            sr = wf.getframerate()
+            audio = np.frombuffer(frames, dtype=np.int16)
+            sd.play(audio.astype(np.float32) / 32768.0, samplerate=sr, blocking=True)
+    except wave.Error:
+        import soundfile as sf
+
+        data, sr = sf.read(io.BytesIO(audio_bytes))
+        sd.play(data, samplerate=sr, blocking=True)
+
+
+@voice_app.command("preview")
+def voice_preview(
+    voice_id: str = typer.Argument(help="Stored voice profile ID"),
+    text: str = typer.Option(
+        "Hello! This is a preview of my voice.", "--text", "-t", help="Text to speak"
+    ),
+):
+    """Synthesize a test clip with a stored profile and play it locally."""
+    import asyncio
+
+    from agent_ptt.models import VoiceProfile
+    from agent_ptt.tts import get_backend
+
+    base = _get_base_url()
+    resp = httpx.get(f"{base}/voices/profiles/{voice_id}")
+    if resp.status_code != 200:
+        rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
+        raise typer.Exit(1)
+
+    profile = VoiceProfile(**resp.json())
+    try:
+        backend = get_backend(profile.engine)
+    except ValueError:
+        rprint(
+            f"[bold red]❌ Engine '{profile.engine}' not available.[/bold red] "
+            "Install it first: [cyan]uv sync --extra omnivoice[/cyan]"
+        )
+        raise typer.Exit(1) from None
+
+    rprint(f"[bold green]🎧 Synthesizing preview[/bold green] ({profile.engine})...")
+    audio_bytes = asyncio.run(backend.synthesize(text, profile))
+    _play_audio_bytes(audio_bytes)
+    rprint("[bold green]✅ Done[/bold green]")
+
+
 # ---------------------------------------------------------------------------
 # Model management (local neural TTS)
 # ---------------------------------------------------------------------------

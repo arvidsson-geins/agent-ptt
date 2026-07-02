@@ -246,6 +246,37 @@ agent-ptt voice save --id narrator --name "Epic Narrator" \
 agent-ptt voice delete VOICE_ID
 ```
 
+### `agent-ptt voice design`
+
+Design an OmniVoice voice from attributes and save it as a profile. Values are validated against the model's vocabulary; accents and pitches accept shorthand (`british` → `british accent`).
+
+```bash
+agent-ptt voice design --name NAME [--id ID] [--gender G] [--age A] [--accent ACC] [--pitch P] [--whisper]
+```
+
+| Option | Values |
+|--------|--------|
+| `--gender`, `-g` | `male`, `female` |
+| `--age`, `-a` | `teenager`, `young adult`, `middle-aged`, `elderly` |
+| `--accent` | `american`, `australian`, `british`, `canadian`, `chinese`, `indian`, `japanese`, `korean`, `portuguese`, `russian` |
+| `--pitch`, `-p` | `very low`, `low`, `moderate`, `high`, `very high` |
+| `--whisper` | flag — whispering voice |
+
+**Example:**
+```bash
+agent-ptt voice design --name "Aussie Agent" --gender female --age "young adult" --accent australian --pitch high
+# 🎨 Voice designed: aussie-agent
+#    Instruct: female, young adult, australian accent, high pitch
+```
+
+### `agent-ptt voice preview`
+
+Synthesize a test clip with a stored profile and play it through your speakers. Works with any engine; omnivoice profiles synthesize locally (requires the omnivoice extra).
+
+```bash
+agent-ptt voice preview VOICE_ID [--text "What to say"]
+```
+
 ---
 
 ## Model Management
