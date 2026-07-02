@@ -9,6 +9,7 @@ import httpx
 import typer
 from rich import print as rprint
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 app = typer.Typer(
@@ -60,7 +61,12 @@ def server_start(
     port: int = typer.Option(8770, help="Bind port"),
 ):
     """Start the Agent PTT server."""
+    import logging
+
     import uvicorn
+
+    # Make app loggers (TTS pipeline, audio mixer) visible alongside uvicorn's
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s")
 
     rprint(f"[bold green]🎙️  Starting Agent PTT server on {host}:{port}[/bold green]")
     uvicorn.run(
@@ -176,7 +182,7 @@ def join(
         if designed := data.get("designed_voice"):
             rprint(
                 f"   Voice: [magenta]auto-designed[/magenta] "
-                f"{json.dumps(designed.get('settings', {}))}"
+                f"{escape(json.dumps(designed.get('settings', {})))}"
             )
         rprint(f"   Key: [cyan]{data['key_id']}[/cyan]")
     else:
@@ -374,7 +380,7 @@ def voice_list(
                 p["voice_id"],
                 p["display_name"],
                 p["engine"],
-                json.dumps(p.get("settings", {})),
+                escape(json.dumps(p.get("settings", {}))),
             )
         console.print(table)
     else:
@@ -387,7 +393,7 @@ def voice_show(voice_id: str = typer.Argument(help="Voice profile ID")):
     base = _get_base_url()
     resp = httpx.get(f"{base}/voices/profiles/{voice_id}")
     if resp.status_code == 200:
-        rprint(json.dumps(resp.json(), indent=2, default=str))
+        rprint(escape(json.dumps(resp.json(), indent=2, default=str)))
     else:
         rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
 

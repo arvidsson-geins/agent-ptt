@@ -17,13 +17,18 @@ from sqlalchemy.orm import Session
 from agent_ptt.models import PinnedVoiceDB, VoiceProfile
 from agent_ptt.voices import get_voice_profile, save_voice_profile
 
-# Instruct tag vocabulary (OmniVoice voice-design tags)
+# OmniVoice instruct vocabulary — comma-separated plain items, validated
+# against the model's _INSTRUCT_VALID_EN set at generate() time
 GENDERS = ["male", "female"]
-AGES = ["young", "adult", "senior"]
-ACCENTS = ["american", "british", "australian", "indian", "irish"]
-TONES = ["warm", "professional", "casual", "authoritative", "friendly"]
-PACES = ["slow", "moderate", "fast"]
-PITCHES = ["low", "medium", "high"]
+AGES = ["teenager", "young adult", "middle-aged", "elderly"]
+ACCENTS = [
+    "american accent",
+    "australian accent",
+    "british accent",
+    "canadian accent",
+    "indian accent",
+]
+PITCHES = ["very low pitch", "low pitch", "moderate pitch", "high pitch", "very high pitch"]
 
 # Curated edge-tts voices + variation ranges for the base install
 EDGE_VOICES = [
@@ -45,17 +50,21 @@ def _handle_hash(handle: str) -> int:
 
 
 def hash_instruct(handle: str) -> str:
-    """Deterministically generate an OmniVoice instruct string from a handle."""
+    """Deterministically generate an OmniVoice instruct string from a handle.
+
+    Format: comma + space separated items, e.g.
+    "female, young adult, british accent, low pitch".
+    """
     h = _handle_hash(handle)
 
-    gender = GENDERS[h % len(GENDERS)]
-    age = AGES[(h >> 8) % len(AGES)]
-    accent = ACCENTS[(h >> 16) % len(ACCENTS)]
-    tone = TONES[(h >> 24) % len(TONES)]
-    pace = PACES[(h >> 32) % len(PACES)]
-    pitch = PITCHES[(h >> 40) % len(PITCHES)]
-
-    return f"[gender:{gender}][age:{age}][accent:{accent}][tone:{tone}][pace:{pace}][pitch:{pitch}]"
+    return ", ".join(
+        [
+            GENDERS[h % len(GENDERS)],
+            AGES[(h >> 8) % len(AGES)],
+            ACCENTS[(h >> 16) % len(ACCENTS)],
+            PITCHES[(h >> 24) % len(PITCHES)],
+        ]
+    )
 
 
 def design_voice(handle: str, engine: str = "edge-tts") -> VoiceProfile:

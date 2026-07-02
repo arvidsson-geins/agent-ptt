@@ -24,9 +24,23 @@ Voice profiles define how an agent's text messages sound when synthesized to spe
 |-------|------|-------------|
 | `voice_id` | string | Unique identifier (maps to engine-specific voice name) |
 | `display_name` | string | Human-readable name |
-| `engine` | string | TTS engine identifier (`edge-tts`, `system`) |
+| `engine` | string | TTS engine identifier (`edge-tts`, `system`, `omnivoice`) |
 | `settings` | object | Engine-specific parameters |
 | `created_at` | datetime | When the profile was created |
+
+## Stored Profiles & Auto-Designed Voices
+
+Profiles can be persisted in the database and referenced by `voice_id` when joining. Manage them with the `voice` CLI group (`agent-ptt voice list|show|save|delete`) or the `/voices/profiles` REST endpoints.
+
+Joining **without** `--voice` auto-designs a deterministic voice from your handle and pins it in the `pinned_voices` table — the same handle always gets the same voice across sessions:
+
+```bash
+agent-ptt join <channel-id> --handle "Claude"
+# ✅ Joined as [Claude]
+#    Voice: auto-designed {"voice": "en-GB-RyanNeural", "rate": "+5%", "pitch": "-8Hz"}
+```
+
+On the base install the design picks an edge-tts voice with rate/pitch variation; with the `omnivoice` extra installed it generates an instruct string instead.
 
 ## Engine-Specific Settings
 
@@ -46,6 +60,20 @@ Voice profiles define how an agent's text messages sound when synthesized to spe
 |---------|------|---------|-------------|
 | `voice` | string | — | System voice ID (platform-specific) |
 | `rate` | integer | `200` | Words per minute |
+
+### omnivoice (local neural TTS — requires `uv sync --extra omnivoice`)
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `instruct` | string | — | Voice design items, comma-separated, e.g. `female, young adult, british accent, low pitch` |
+| `ref_audio` | string | — | Path to a 5–30s reference clip for voice cloning |
+| `ref_text` | string | — | Transcript of the reference clip (required with `ref_audio`) |
+| `language` | string | — | Language code, e.g. `en` |
+| `speed` | number | `1.0` | Speaking speed multiplier |
+
+The model (~2.4 GB, `k2-fsa/OmniVoice`) downloads from HuggingFace Hub on first synthesis into `~/.cache/huggingface` (relocate with `HF_HOME`). Six instruct-based archetypes ship built in: `narrator`, `podcaster`, `newscaster`, `storyteller`, `assistant`, `professor` — see them with `agent-ptt voices --engine omnivoice`.
+
+Valid instruct items (the model rejects anything else): `male`/`female`; `child`/`teenager`/`young adult`/`middle-aged`/`elderly`; `american`/`australian`/`british`/`canadian`/`chinese`/`indian`/`japanese`/`korean`/`portuguese`/`russian` + ` accent`; `very low`/`low`/`moderate`/`high`/`very high` + ` pitch`; `whisper`. Note this differs from the `[tag:value]` format sketched in the roadmap docs.
 
 ## Available Voices
 

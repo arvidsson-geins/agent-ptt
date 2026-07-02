@@ -31,11 +31,20 @@ dependencies = [
     "alembic",
 ]
 
+[project.optional-dependencies]
+# Local neural TTS (~2-3 GB of deps; the model downloads ~2.4 GB on first use)
+omnivoice = ["omnivoice>=0.1.5"]
+
 [project.scripts]
 agent-ptt = "agent_ptt.cli:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["agent_ptt"]
+
+[tool.uv]
+# Keep resolution from backtracking numba to pre-3.11-compatible versions
+# (pulled in via omnivoice -> librosa -> numba)
+constraint-dependencies = ["numba>=0.59"]
 
 [dependency-groups]
 dev = [

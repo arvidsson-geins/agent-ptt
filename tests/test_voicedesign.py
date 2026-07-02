@@ -1,19 +1,32 @@
 """Deterministic voice design and handle pinning."""
 
-import re
+import pytest
 
+from agent_ptt import server
 from agent_ptt.models import PinnedVoiceDB
 from agent_ptt.voicedesign import (
+    ACCENTS,
+    AGES,
     EDGE_VOICES,
+    GENDERS,
+    PITCHES,
     design_voice,
     get_or_create_pinned_voice,
     hash_instruct,
 )
 from tests.test_api import _create_channel, _wait_for
 
-INSTRUCT_PATTERN = re.compile(
-    r"^\[gender:\w+\]\[age:\w+\]\[accent:\w+\]\[tone:\w+\]\[pace:\w+\]\[pitch:\w+\]$"
-)
+
+def _is_valid_instruct(instruct: str) -> bool:
+    """One item per category, drawn from the model-validated vocabulary."""
+    parts = instruct.split(", ")
+    return (
+        len(parts) == 4
+        and parts[0] in GENDERS
+        and parts[1] in AGES
+        and parts[2] in ACCENTS
+        and parts[3] in PITCHES
+    )
 
 
 def test_hash_instruct_is_deterministic_and_case_insensitive():
@@ -21,8 +34,8 @@ def test_hash_instruct_is_deterministic_and_case_insensitive():
     assert hash_instruct("Claude") == hash_instruct("claude")
 
 
-def test_hash_instruct_contains_all_tags():
-    assert INSTRUCT_PATTERN.match(hash_instruct("Claude"))
+def test_hash_instruct_uses_valid_vocabulary():
+    assert _is_valid_instruct(hash_instruct("Claude"))
 
 
 def test_hash_instruct_diverges_between_handles():
@@ -41,7 +54,7 @@ def test_design_voice_edge_tts():
 def test_design_voice_omnivoice():
     profile = design_voice("Claude", engine="omnivoice")
     assert profile.engine == "omnivoice"
-    assert INSTRUCT_PATTERN.match(profile.settings["instruct"])
+    assert _is_valid_instruct(profile.settings["instruct"])
 
 
 def test_get_or_create_pins_and_reuses(db_session):
@@ -57,7 +70,13 @@ def test_get_or_create_pins_and_reuses(db_session):
     assert pin.source == "hash"
 
 
-def test_join_without_voice_auto_designs(client, db_session, fake_tts):
+@pytest.fixture
+def no_omnivoice(monkeypatch):
+    """Force the base-install design path regardless of installed extras."""
+    monkeypatch.setattr(server, "has_backend", lambda engine: False)
+
+
+def test_join_without_voice_auto_designs(client, db_session, fake_tts, no_omnivoice):
     channel_id = _create_channel(client)
     resp = client.post(f"/channels/{channel_id}/join", json={"handle": "Claude"})
     assert resp.status_code == 200
@@ -84,7 +103,16 @@ def test_join_with_explicit_voice_skips_design(client, db_session):
     assert db_session.get(PinnedVoiceDB, "claude") is None
 
 
-def test_auto_designed_voice_flows_to_tts(client, db_session, fake_tts):
+def test_join_auto_designs_omnivoice_when_available(client, db_session, monkeypatch):
+    monkeypatch.setattr(server, "has_backend", lambda engine: engine == "omnivoice")
+    channel_id = _create_channel(client)
+    resp = client.post(f"/channels/{channel_id}/join", json={"handle": "Claude"})
+    designed = resp.json()["designed_voice"]
+    assert designed["engine"] == "omnivoice"
+    assert _is_valid_instruct(designed["settings"]["instruct"])
+
+
+def test_auto_designed_voice_flows_to_tts(client, db_session, fake_tts, no_omnivoice):
     """The whole point: joining without a voice must synthesize with the
     designed profile's settings, resolved from the DB."""
     channel_id = _create_channel(client)

@@ -121,10 +121,18 @@ Zero code changes. See the [Database Guide](docs/database.md).
 ## Tech Stack
 
 - **Server**: FastAPI + uvicorn (WebSocket + REST)
-- **TTS**: edge-tts (default, English voices) / pyttsx3 (offline fallback)
+- **TTS**: edge-tts (default, English voices) / pyttsx3 (offline fallback) / OmniVoice (local neural, optional)
 - **Audio**: sounddevice + numpy + soundfile
 - **Database**: SQLAlchemy + libSQL (SQLite → Turso)
 - **CLI**: Typer + Rich
+
+## Local Neural TTS (optional)
+
+```bash
+uv sync --extra omnivoice
+```
+
+Adds the `omnivoice` engine — local, offline neural TTS with instruct-based voice design (`female, young adult, british accent, low pitch`) and voice cloning. The ~2.4 GB model downloads on first use. Joining a channel without `--voice` auto-designs a unique, persistent voice for your handle. See [Voice Profiles](docs/voices.md).
 
 ## License
 

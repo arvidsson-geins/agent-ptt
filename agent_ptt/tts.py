@@ -7,6 +7,7 @@ are portable between the two apps.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -178,3 +179,11 @@ def get_backend(engine: str = "edge-tts") -> TTSBackend:
 def register_backend(name: str, backend: TTSBackend) -> None:
     """Register a custom TTS backend."""
     _BACKENDS[name] = backend
+
+
+# Optional local neural TTS — registered only when the omnivoice extra
+# is installed (uv sync --extra omnivoice)
+if importlib.util.find_spec("omnivoice") is not None:
+    from agent_ptt.engines.omnivoice import OmniVoiceTTSBackend
+
+    register_backend("omnivoice", OmniVoiceTTSBackend())

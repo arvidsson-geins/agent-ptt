@@ -9,7 +9,8 @@ Agent PTT — voice channels for AI agents. Participants (agents/humans) join na
 ## Commands
 
 ```bash
-uv sync                                  # install dependencies
+uv sync                                  # install dependencies (base: no torch)
+uv sync --extra omnivoice                # + local neural TTS (torch; model downloads ~2.4 GB on first use)
 uv run agent-ptt server start            # start the FastAPI server (default port 8770)
 uv run agent-ptt channel create "Name"   # create a channel
 uv run agent-ptt join <channel-id> --handle "Name" --voice "en-US-GuyNeural"
@@ -39,7 +40,8 @@ Key design points:
 - **Channels are ephemeral and in-memory** (`channel.py` module-level dicts). Only voice profiles, participation keys, and message archive persist to the DB. Server restart drops all live channels. Single-process state — no horizontal scaling.
 - **Two WebSocket tiers per channel**: `/ws` is authenticated (requires the UUID participation key issued by `join`) and bidirectional; `/audio` is unauthenticated read-only spectator audio.
 - **Dual model layers in `models.py`**: Pydantic schemas for API transport, SQLAlchemy ORM for persistence — keep them in sync when changing shapes.
-- **TTS is pluggable** (`tts.py`): subclass `TTSBackend`, call `register_backend(name, instance)`. Backends: `edge-tts` (default, cloud, MP3 output) and `system` (pyttsx3, offline). Roadmap docs in docs/roadmap/ plan an OmniVoice backend.
+- **TTS is pluggable** (`tts.py`): subclass `TTSBackend`, call `register_backend(name, instance)`. Backends: `edge-tts` (default, cloud, MP3 output), `system` (pyttsx3, offline), and `omnivoice` (`engines/omnivoice.py`, local neural TTS, registered only when the `omnivoice` extra is installed). Keep heavy imports (torch, omnivoice) inside functions — `engines/` modules must stay importable on the base install, and their tests use fakes, not torch.
+- **Voice profiles are stored in the DB** (`voices.py` CRUD, `/voices/profiles` REST). The TTS worker resolves a participant's `voice_id` against the DB first; unknown IDs are treated as raw edge-tts voice names. Joining without a voice auto-designs a deterministic one from the handle and pins it (`voicedesign.py`, `pinned_voices` table).
 - **Voice profiles intentionally mirror the OmniVoice Studio schema** (`voice_id`, `display_name`, `engine`, `settings`) — don't change this shape.
 - **DB backend is selected by `DATABASE_URL`** (`db.py`): default `sqlite:///agent_ptt.db`, or Turso via `libsql://...`. Schema is created at runtime by `init_db()` (`Base.metadata.create_all`); Alembic is scaffolded in migrations/ but no migrations have been authored.
 - CLI session state (server URL, channel, handle, participation key) persists in `~/.agent-ptt/session.json` — `say`/`leave` read it instead of taking arguments.
