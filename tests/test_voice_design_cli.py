@@ -101,6 +101,80 @@ def test_design_requires_at_least_one_attribute(fake_post):
 
 
 # ---------------------------------------------------------------------------
+# voice clone
+# ---------------------------------------------------------------------------
+
+
+def test_clone_saves_profile_with_absolute_ref(fake_post, tmp_path):
+    ref = tmp_path / "sample.wav"
+    ref.write_bytes(b"RIFF fake wav")
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "voice",
+            "clone",
+            "--reference",
+            str(ref),
+            "--transcript",
+            "This is what I said in the clip.",
+            "--name",
+            "My Clone",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = fake_post[0]["json"]
+    assert payload["voice_id"] == "my-clone"
+    assert payload["engine"] == "omnivoice"
+    assert payload["settings"] == {
+        "ref_audio": str(ref.resolve()),
+        "ref_text": "This is what I said in the clip.",
+    }
+    assert "voice preview my-clone" in _flat(result.output)
+
+
+def test_clone_missing_reference_file(fake_post, tmp_path):
+    result = runner.invoke(
+        cli.app,
+        [
+            "voice",
+            "clone",
+            "--reference",
+            str(tmp_path / "nope.wav"),
+            "--transcript",
+            "hello",
+            "--name",
+            "Ghost",
+        ],
+    )
+    assert result.exit_code == 1
+    assert not fake_post
+
+
+def test_clone_requires_transcript(fake_post, tmp_path):
+    ref = tmp_path / "sample.wav"
+    ref.write_bytes(b"RIFF fake wav")
+    result = runner.invoke(
+        cli.app,
+        ["voice", "clone", "--reference", str(ref), "--name", "No Transcript"],
+    )
+    assert result.exit_code != 0
+    assert not fake_post
+
+
+def test_clone_rejects_blank_transcript(fake_post, tmp_path):
+    ref = tmp_path / "sample.wav"
+    ref.write_bytes(b"RIFF fake wav")
+    result = runner.invoke(
+        cli.app,
+        ["voice", "clone", "--reference", str(ref), "--transcript", "   ", "--name", "Blank"],
+    )
+    assert result.exit_code == 1
+    assert not fake_post
+
+
+# ---------------------------------------------------------------------------
 # voice preview
 # ---------------------------------------------------------------------------
 

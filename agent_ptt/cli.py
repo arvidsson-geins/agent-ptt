@@ -514,6 +514,53 @@ def voice_design(
         rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
 
 
+@voice_app.command("clone")
+def voice_clone(
+    reference: Path = typer.Option(
+        ..., "--reference", "-r", help="Reference audio clip (5-30s WAV)"
+    ),
+    transcript: str = typer.Option(
+        ...,
+        "--transcript",
+        "-t",
+        help="Exact transcript of the reference clip (required — avoids the 1.6 GB ASR model)",
+    ),
+    name: str = typer.Option(..., "--name", "-n", help="Display name for the cloned voice"),
+    voice_id: str = typer.Option(None, "--id", help="Profile ID (default: slug of the name)"),
+):
+    """Clone a voice from a reference audio clip and save it as a profile."""
+    ref_path = reference.expanduser().resolve()
+    if not ref_path.is_file():
+        rprint(f"[bold red]❌ Reference file not found:[/bold red] {ref_path}")
+        raise typer.Exit(1)
+    if not transcript.strip():
+        rprint("[bold red]❌ Transcript must not be empty[/bold red]")
+        raise typer.Exit(1)
+
+    profile_id = voice_id or name.strip().lower().replace(" ", "-")
+
+    base = _get_base_url()
+    resp = httpx.post(
+        f"{base}/voices/profiles",
+        json={
+            "voice_id": profile_id,
+            "display_name": name,
+            "engine": "omnivoice",
+            "settings": {"ref_audio": str(ref_path), "ref_text": transcript},
+        },
+    )
+    if resp.status_code == 200:
+        rprint(f"[bold green]🧬 Voice cloned:[/bold green] {profile_id}")
+        rprint(f"   Reference: [dim]{ref_path}[/dim]")
+        rprint(f"   Preview:   [dim]agent-ptt voice preview {profile_id}[/dim]")
+        rprint(
+            "   [yellow]Note:[/yellow] the reference file is read at synthesis time — "
+            "keep it at this path."
+        )
+    else:
+        rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
+
+
 def _play_audio_bytes(audio_bytes: bytes) -> None:
     """Play WAV (or MP3-fallback) audio bytes through the local speakers."""
     import io

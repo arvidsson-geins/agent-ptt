@@ -277,6 +277,24 @@ Synthesize a test clip with a stored profile and play it through your speakers. 
 agent-ptt voice preview VOICE_ID [--text "What to say"]
 ```
 
+### `agent-ptt voice clone`
+
+Clone a voice from a 5–30 second reference clip and save it as a profile. The transcript is required — supplying it avoids downloading the 1.6 GB ASR model.
+
+```bash
+agent-ptt voice clone --reference CLIP.wav --transcript "Exact words spoken in the clip" --name NAME [--id ID]
+```
+
+The reference file is read at synthesis time, so keep it at the same path (it is not copied into the database).
+
+**Example:**
+```bash
+agent-ptt voice clone -r ./my-voice.wav -t "This is what I said in the recording." -n "My Clone"
+# 🧬 Voice cloned: my-clone
+agent-ptt voice preview my-clone
+agent-ptt join <channel-id> --handle "Me" --voice my-clone
+```
+
 ---
 
 ## Model Management

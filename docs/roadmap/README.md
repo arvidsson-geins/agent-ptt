@@ -12,7 +12,7 @@ The OmniVoice engine is just a HuggingFace `PreTrainedModel` with two methods: `
 |----------|--------|-------------|
 | [Local TTS Engines](local-tts-engines.md) | ✅ Shipped (via PyPI dep, not vendoring) | Depend on the `omnivoice` package for local neural TTS |
 | [Engine Integration](engine-integration.md) | ✅ Shipped | `OmniVoiceTTSBackend` in `agent_ptt/engines/`, device detection, `omnivoice` extra |
-| [Voice Design](voice-design.md) | 🚧 Partial | Instruct profiles, archetypes, `voice design`/`preview` CLI shipped; cloning CLI pending |
+| [Voice Design](voice-design.md) | ✅ Shipped | Instruct profiles, archetypes, `voice design`/`preview`/`clone` CLI |
 | [Auto Voice Designer](auto-voice-designer.md) | 🚧 Partial | Hash-based auto-assignment + pinning shipped; LLM designer pending |
 
 ## Priority Order
