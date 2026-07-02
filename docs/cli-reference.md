@@ -277,6 +277,26 @@ Synthesize a test clip with a stored profile and play it through your speakers. 
 agent-ptt voice preview VOICE_ID [--text "What to say"]
 ```
 
+### `agent-ptt voice pinned`
+
+List handles with auto-designed pinned voices (assigned when joining without `--voice`).
+
+```bash
+agent-ptt voice pinned
+# Table: handle, voice ID, source (llm | hash), settings
+```
+
+### `agent-ptt voice redesign`
+
+Design a fresh voice for a handle, replacing the pinned one. Uses the LLM designer when installed (see below), otherwise the deterministic hash (which will reproduce the same voice).
+
+```bash
+agent-ptt voice redesign HANDLE
+# 🎨 Redesigned voice for [Professor Oak]
+#    Old: {"instruct": "male, young adult, russian accent, low pitch"}
+#    New: {"instruct": "female, young adult, british accent, high pitch"}
+```
+
 ### `agent-ptt voice clone`
 
 Clone a voice from a 5–30 second reference clip and save it as a profile. The transcript is required — supplying it avoids downloading the 1.6 GB ASR model.

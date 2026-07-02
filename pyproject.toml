@@ -34,6 +34,8 @@ dependencies = [
 [project.optional-dependencies]
 # Local neural TTS (~2-3 GB of deps; the model downloads ~2.4 GB on first use)
 omnivoice = ["omnivoice>=0.1.5"]
+# LLM voice designer (~1 GB model on first use; already satisfied by omnivoice)
+voice-designer = ["transformers>=4.45", "torch>=2.4"]
 
 [project.scripts]
 agent-ptt = "agent_ptt.cli:app"

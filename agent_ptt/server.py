@@ -17,7 +17,11 @@ from agent_ptt.audio import get_mixer
 from agent_ptt.db import SessionLocal, get_db, init_db
 from agent_ptt.models import Message, VoiceProfile
 from agent_ptt.tts import get_backend, has_backend
-from agent_ptt.voicedesign import get_or_create_pinned_voice
+from agent_ptt.voicedesign import (
+    get_or_create_pinned_voice,
+    list_pinned_voices,
+    redesign_pinned_voice,
+)
 from agent_ptt.voices import (
     delete_voice_profile,
     get_voice_profile,
@@ -184,7 +188,8 @@ async def join_channel(
     designed = None
     if voice_id is None:
         engine = "omnivoice" if has_backend("omnivoice") else "edge-tts"
-        designed = get_or_create_pinned_voice(req.handle, db, engine=engine)
+        # In a thread: first LLM-based design can take seconds (model load)
+        designed = await asyncio.to_thread(get_or_create_pinned_voice, req.handle, db, engine)
         voice_id = designed.voice_id
 
     key = ch.join_channel(channel_id, req.handle, voice_id, db=db)
@@ -248,6 +253,20 @@ async def delete_profile(voice_id: str, db: Session = Depends(get_db)):
     if not delete_voice_profile(voice_id, db):
         return JSONResponse({"error": "Voice profile not found"}, status_code=404)
     return {"status": "deleted"}
+
+
+@app.get("/voices/pinned")
+async def get_pinned_voices(db: Session = Depends(get_db)):
+    """List handles with auto-designed pinned voices."""
+    return list_pinned_voices(db)
+
+
+@app.post("/voices/pinned/{handle}/redesign")
+async def redesign_voice(handle: str, db: Session = Depends(get_db)):
+    """Design a fresh voice for a handle, replacing the existing pin."""
+    engine = "omnivoice" if has_backend("omnivoice") else "edge-tts"
+    profile = await asyncio.to_thread(redesign_pinned_voice, handle, db, engine)
+    return profile.model_dump()
 
 
 # ---------------------------------------------------------------------------

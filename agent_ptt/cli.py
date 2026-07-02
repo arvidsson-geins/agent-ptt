@@ -164,9 +164,11 @@ def join(
 ):
     """Join a channel with a handle and voice."""
     base = _get_base_url()
+    # Generous timeout: joining without a voice may load the designer LLM
     resp = httpx.post(
         f"{base}/channels/{channel_id}/join",
         json={"handle": handle, "voice_id": voice},
+        timeout=120.0,
     )
     if resp.status_code == 200:
         data = resp.json()
@@ -512,6 +514,60 @@ def voice_design(
         )
     else:
         rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
+
+
+@voice_app.command("pinned")
+def voice_pinned():
+    """List handles with auto-designed pinned voices."""
+    base = _get_base_url()
+    resp = httpx.get(f"{base}/voices/pinned")
+    if resp.status_code != 200:
+        rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
+        return
+
+    pins = resp.json()
+    if not pins:
+        rprint("[dim]No pinned voices — join a channel without --voice to get one[/dim]")
+        return
+
+    table = Table(title="Pinned Voices")
+    table.add_column("Handle", style="cyan")
+    table.add_column("Voice ID", style="dim")
+    table.add_column("Source")
+    table.add_column("Settings", style="dim")
+
+    for pin in pins:
+        table.add_row(
+            pin["handle"],
+            pin["voice_id"],
+            pin["source"],
+            escape(json.dumps(pin.get("settings", {}))),
+        )
+    console.print(table)
+
+
+@voice_app.command("redesign")
+def voice_redesign(handle: str = typer.Argument(help="Handle to redesign the voice for")):
+    """Design a fresh voice for a handle, replacing the pinned one."""
+    base = _get_base_url()
+
+    old_resp = httpx.get(f"{base}/voices/pinned")
+    old_pins = old_resp.json() if old_resp.status_code == 200 else []
+    old_settings = next(
+        (p.get("settings") for p in old_pins if p["handle"] == handle.lower()), None
+    )
+
+    resp = httpx.post(f"{base}/voices/pinned/{handle}/redesign")
+    if resp.status_code != 200:
+        rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")
+        raise typer.Exit(1)
+
+    profile = resp.json()
+    rprint(f"[bold green]🎨 Redesigned voice for [{handle}][/bold green]")
+    if old_settings is not None:
+        rprint(f"   Old: [dim]{escape(json.dumps(old_settings))}[/dim]")
+    rprint(f"   New: [cyan]{escape(json.dumps(profile.get('settings', {})))}[/cyan]")
+    rprint(f"   Preview: [dim]agent-ptt voice preview {profile['voice_id']}[/dim]")
 
 
 @voice_app.command("clone")

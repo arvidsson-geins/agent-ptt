@@ -132,7 +132,7 @@ Zero code changes. See the [Database Guide](docs/database.md).
 uv sync --extra omnivoice
 ```
 
-Adds the `omnivoice` engine — local, offline neural TTS with instruct-based voice design (`female, young adult, british accent, low pitch`) and voice cloning. The ~2.4 GB model downloads on first use. Joining a channel without `--voice` auto-designs a unique, persistent voice for your handle. See [Voice Profiles](docs/voices.md).
+Adds the `omnivoice` engine — local, offline neural TTS with instruct-based voice design (`female, young adult, british accent, low pitch`) and voice cloning. The ~2.4 GB model downloads on first use. Joining a channel without `--voice` auto-designs a unique, persistent voice for your handle — with the extra installed, a small local LLM even picks attributes matching your handle's vibe. See [Voice Profiles](docs/voices.md).
 
 ## License
 

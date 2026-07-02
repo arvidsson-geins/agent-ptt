@@ -10,12 +10,15 @@ same pinning flow.
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
 from agent_ptt.models import PinnedVoiceDB, VoiceProfile
 from agent_ptt.voices import get_voice_profile, save_voice_profile
+
+logger = logging.getLogger(__name__)
 
 # OmniVoice instruct vocabulary — comma-separated plain items, validated
 # against the model's _INSTRUCT_VALID_EN set at generate() time
@@ -26,7 +29,12 @@ ACCENTS = [
     "australian accent",
     "british accent",
     "canadian accent",
+    "chinese accent",
     "indian accent",
+    "japanese accent",
+    "korean accent",
+    "portuguese accent",
+    "russian accent",
 ]
 PITCHES = ["very low pitch", "low pitch", "moderate pitch", "high pitch", "very high pitch"]
 
@@ -88,6 +96,43 @@ def design_voice(handle: str, engine: str = "edge-tts") -> VoiceProfile:
     )
 
 
+def _design_best_voice(handle: str, engine: str) -> tuple[VoiceProfile, str]:
+    """Design a voice using the LLM designer when available, else the hash.
+
+    Returns (profile, source) where source is "llm" or "hash".
+    """
+    if engine == "omnivoice":
+        try:
+            from agent_ptt.designer import designer_available, get_designer
+
+            if designer_available():
+                instruct = get_designer().design_instruct(handle)
+                profile = VoiceProfile(
+                    voice_id=f"auto-{handle.lower()}",
+                    display_name=f"{handle}'s Voice",
+                    engine="omnivoice",
+                    settings={"instruct": instruct},
+                )
+                return profile, "llm"
+        except Exception as e:
+            logger.warning(f"LLM voice design failed for [{handle}], using hash: {e}")
+
+    return design_voice(handle, engine), "hash"
+
+
+def _pin_voice(handle: str, profile: VoiceProfile, source: str, db: Session) -> None:
+    save_voice_profile(profile, db)
+    db.merge(
+        PinnedVoiceDB(
+            handle=handle.lower(),
+            voice_id=profile.voice_id,
+            source=source,
+            created_at=datetime.now(UTC),
+        )
+    )
+    db.commit()
+
+
 def get_or_create_pinned_voice(
     handle: str,
     db: Session,
@@ -100,15 +145,37 @@ def get_or_create_pinned_voice(
         if profile is not None:
             return profile
 
-    profile = design_voice(handle, engine)
-    save_voice_profile(profile, db)
-    db.merge(
-        PinnedVoiceDB(
-            handle=handle.lower(),
-            voice_id=profile.voice_id,
-            source="hash",
-            created_at=datetime.now(UTC),
-        )
-    )
-    db.commit()
+    profile, source = _design_best_voice(handle, engine)
+    _pin_voice(handle, profile, source, db)
     return profile
+
+
+def redesign_pinned_voice(
+    handle: str,
+    db: Session,
+    engine: str = "edge-tts",
+) -> VoiceProfile:
+    """Design a fresh voice for a handle, replacing any existing pin."""
+    profile, source = _design_best_voice(handle, engine)
+    _pin_voice(handle, profile, source, db)
+    return profile
+
+
+def list_pinned_voices(db: Session) -> list[dict]:
+    """All pinned voices with their profile settings, newest first."""
+    from sqlalchemy import select
+
+    pins = db.scalars(select(PinnedVoiceDB)).all()
+    result = []
+    for pin in sorted(pins, key=lambda p: p.created_at or datetime.min, reverse=True):
+        profile = get_voice_profile(pin.voice_id, db)
+        result.append(
+            {
+                "handle": pin.handle,
+                "voice_id": pin.voice_id,
+                "source": pin.source,
+                "engine": profile.engine if profile else None,
+                "settings": profile.settings if profile else {},
+            }
+        )
+    return result

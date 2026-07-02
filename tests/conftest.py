@@ -64,6 +64,14 @@ class FakeMixer:
 
 
 @pytest.fixture(autouse=True)
+def no_real_llm_designer(monkeypatch):
+    """Never load the real designer LLM in tests — transformers may be
+    installed (omnivoice extra), which would make joins download Qwen.
+    Tests that want the LLM path monkeypatch designer_available back."""
+    monkeypatch.setattr("agent_ptt.designer.designer_available", lambda: False)
+
+
+@pytest.fixture(autouse=True)
 def clean_state():
     """Reset all module-level in-memory registries between tests."""
     yield

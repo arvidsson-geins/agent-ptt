@@ -65,6 +65,10 @@ dependencies = [
 omnivoice = [
     { name = "omnivoice" },
 ]
+voice-designer = [
+    { name = "torch" },
+    { name = "transformers" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -89,6 +93,8 @@ requires-dist = [
     { name = "soundfile" },
     { name = "sqlalchemy", specifier = ">=2" },
     { name = "sqlalchemy-libsql" },
+    { name = "torch", marker = "extra == 'voice-designer'", specifier = ">=2.4" },
+    { name = "transformers", marker = "extra == 'voice-designer'", specifier = ">=4.45" },
     { name = "typer", extras = ["all"] },
     { name = "uvicorn", extras = ["standard"] },
     { name = "websockets" },

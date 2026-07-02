@@ -42,6 +42,8 @@ agent-ptt join <channel-id> --handle "Claude"
 
 On the base install the design picks an edge-tts voice with rate/pitch variation; with the `omnivoice` extra installed it generates an instruct string instead.
 
+When the **LLM voice designer** is installed (`uv sync --extra voice-designer`, already satisfied by the omnivoice extra), a small local LLM (Qwen2.5-0.5B, ~1 GB download on first use) picks instruct attributes matching the *vibe* of the handle instead of a hash. The LLM's answer is validated against the model vocabulary and any invalid or missing attribute falls back to the deterministic hash, so a bad answer can never produce a broken voice. `agent-ptt voice pinned` shows which source designed each voice; `agent-ptt voice redesign <handle>` rolls a new one.
+
 ## Engine-Specific Settings
 
 ### edge-tts
