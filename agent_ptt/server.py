@@ -16,7 +16,8 @@ from agent_ptt import channel as ch
 from agent_ptt.audio import get_mixer
 from agent_ptt.db import SessionLocal, get_db, init_db
 from agent_ptt.models import Message, VoiceProfile
-from agent_ptt.tts import get_backend
+from agent_ptt.tts import get_backend, has_backend
+from agent_ptt.voicedesign import get_or_create_pinned_voice
 from agent_ptt.voices import (
     delete_voice_profile,
     get_voice_profile,
@@ -174,11 +175,26 @@ async def join_channel(
     req: JoinChannelRequest,
     db: Session = Depends(get_db),
 ):
-    """Join a channel and receive a participation key."""
-    key = ch.join_channel(channel_id, req.handle, req.voice_id, db=db)
+    """Join a channel and receive a participation key.
+
+    Without an explicit voice_id, a deterministic voice is designed for
+    the handle and pinned in the DB, so the handle always sounds the same.
+    """
+    voice_id = req.voice_id
+    designed = None
+    if voice_id is None:
+        engine = "omnivoice" if has_backend("omnivoice") else "edge-tts"
+        designed = get_or_create_pinned_voice(req.handle, db, engine=engine)
+        voice_id = designed.voice_id
+
+    key = ch.join_channel(channel_id, req.handle, voice_id, db=db)
     if key is None:
         return JSONResponse({"error": "Channel not found"}, status_code=404)
-    return key.model_dump()
+
+    result = key.model_dump()
+    if designed is not None:
+        result["designed_voice"] = designed.model_dump()
+    return result
 
 
 @app.post("/channels/{channel_id}/leave")

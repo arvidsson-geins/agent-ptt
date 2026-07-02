@@ -152,7 +152,9 @@ def channel_history(channel_id: str = typer.Argument(help="Channel ID")):
 def join(
     channel_id: str = typer.Argument(help="Channel ID to join"),
     handle: str = typer.Option(..., "--handle", "-h", help="Your display name"),
-    voice: str = typer.Option("en-US-AriaNeural", "--voice", "-v", help="Voice ID for TTS"),
+    voice: str = typer.Option(
+        None, "--voice", "-v", help="Voice ID for TTS (omit for an auto-designed voice)"
+    ),
 ):
     """Join a channel with a handle and voice."""
     base = _get_base_url()
@@ -167,10 +169,15 @@ def join(
         session["key_id"] = data["key_id"]
         session["channel_id"] = channel_id
         session["handle"] = handle
-        session["voice"] = voice
+        session["voice"] = data.get("voice_id") or voice
         _save_session(session)
 
         rprint(f"[bold green]✅ Joined as [{handle}][/bold green]")
+        if designed := data.get("designed_voice"):
+            rprint(
+                f"   Voice: [magenta]auto-designed[/magenta] "
+                f"{json.dumps(designed.get('settings', {}))}"
+            )
         rprint(f"   Key: [cyan]{data['key_id']}[/cyan]")
     else:
         rprint(f"[bold red]❌ Error:[/bold red] {resp.text}")

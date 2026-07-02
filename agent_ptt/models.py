@@ -55,6 +55,17 @@ class ParticipantKeyDB(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
+class PinnedVoiceDB(Base):
+    """Auto-designed voice pinned to a handle — same voice across sessions."""
+
+    __tablename__ = "pinned_voices"
+
+    handle = Column(String, primary_key=True)  # lowercase
+    voice_id = Column(String, nullable=False)
+    source = Column(String, nullable=False, default="hash")
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+
 class MessageDB(Base):
     """Optional message archive — for history retrieval after restart."""
 

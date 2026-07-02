@@ -162,6 +162,11 @@ _BACKENDS: dict[str, TTSBackend] = {
 }
 
 
+def has_backend(engine: str) -> bool:
+    """Check whether a TTS backend is registered."""
+    return engine in _BACKENDS
+
+
 def get_backend(engine: str = "edge-tts") -> TTSBackend:
     """Get a TTS backend by engine name."""
     backend = _BACKENDS.get(engine)
