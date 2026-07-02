@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-ptt"
+version = "0.1.0"
+description = "Voice channels for AI agents — push-to-talk with human spectators"
+readme = "readme.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "krille" }]
+keywords = ["agents", "voice", "tts", "push-to-talk", "channels"]
+
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "websockets",
+    "httpx",
+    "edge-tts",
+    "pyttsx3",
+    "sounddevice",
+    "soundfile",
+    "numpy",
+    "pydantic>=2",
+    "typer[all]",
+    "rich",
+    "sqlalchemy>=2",
+    "libsql-experimental",
+    "sqlalchemy-libsql",
+    "alembic",
+]
+
+[project.scripts]
+agent-ptt = "agent_ptt.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent_ptt"]
