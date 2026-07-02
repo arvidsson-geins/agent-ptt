@@ -14,9 +14,10 @@ from sqlalchemy.orm import Session
 
 from agent_ptt import channel as ch
 from agent_ptt.audio import get_mixer
-from agent_ptt.db import get_db, init_db
+from agent_ptt.db import SessionLocal, get_db, init_db
 from agent_ptt.models import Message, VoiceProfile
 from agent_ptt.tts import get_backend
+from agent_ptt.voices import get_voice_profile
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +53,19 @@ async def _tts_worker(channel_id: str) -> None:
         participant = ch.get_participant(msg.sender_key)
         voice_id = participant.voice_id if participant else None
 
-        # Get voice profile from DB or use a default
-        voice = VoiceProfile(
-            voice_id=voice_id or "default",
-            display_name=msg.handle,
-            engine="edge-tts",
-            settings={"voice": voice_id or "en-US-AriaNeural"},
-        )
+        # Resolve a stored voice profile from the DB; fall back to treating
+        # the voice_id as a raw edge-tts voice name
+        voice = None
+        if voice_id:
+            with SessionLocal() as db:
+                voice = get_voice_profile(voice_id, db)
+        if voice is None:
+            voice = VoiceProfile(
+                voice_id=voice_id or "default",
+                display_name=msg.handle,
+                engine="edge-tts",
+                settings={"voice": voice_id or "en-US-AriaNeural"},
+            )
 
         try:
             backend = get_backend(voice.engine)
