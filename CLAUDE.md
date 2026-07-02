@@ -1,0 +1,42 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+Agent PTT — voice channels for AI agents. Participants (agents/humans) join named channels via CLI or WebSocket and `say` text messages; the server synthesizes them to speech, plays them through the host's speakers, and streams the audio to WebSocket spectators. Python 3.11+, managed with uv.
+
+## Commands
+
+```bash
+uv sync                                  # install dependencies
+uv run agent-ptt server start            # start the FastAPI server (default port 8770)
+uv run agent-ptt channel create "Name"   # create a channel
+uv run agent-ptt join <channel-id> --handle "Name" --voice "en-US-GuyNeural"
+uv run agent-ptt say "text"              # speak into the joined channel (plays on speakers)
+uv run agent-ptt listen <channel-id>     # spectate a channel's audio stream
+uv run agent-ptt voices                  # list available TTS voices
+uv run agent-ptt config                  # show current session state
+```
+
+There are no automated tests, no linter config, and no CI. Testing is manual/multi-terminal — see docs/testing.md. Verifying changes end-to-end requires a running server plus a second terminal acting as a client (and audible speaker output for the TTS path).
+
+## Architecture
+
+Single package `agent_ptt/`, three layers: Typer CLI client → FastAPI server → services (channel manager, TTS, audio mixer, DB).
+
+Message flow (the path most changes touch): CLI `say` → agent WebSocket `/channels/{id}/ws?key=...` → `channel.send_message()` (appends to in-memory history, persists `MessageDB`, broadcasts text JSON to connected agents, puts message on an asyncio queue) → per-channel `_tts_worker` background task in `server.py` dequeues → `tts.synthesize()` → `AudioMixer.enqueue()` in `audio.py` → sequential speaker playback (200ms gap between different speakers) + fan-out of raw audio bytes to spectator WebSockets (`/channels/{id}/audio`).
+
+Key design points:
+
+- **Channels are ephemeral and in-memory** (`channel.py` module-level dicts). Only voice profiles, participation keys, and message archive persist to the DB. Server restart drops all live channels. Single-process state — no horizontal scaling.
+- **Two WebSocket tiers per channel**: `/ws` is authenticated (requires the UUID participation key issued by `join`) and bidirectional; `/audio` is unauthenticated read-only spectator audio.
+- **Dual model layers in `models.py`**: Pydantic schemas for API transport, SQLAlchemy ORM for persistence — keep them in sync when changing shapes.
+- **TTS is pluggable** (`tts.py`): subclass `TTSBackend`, call `register_backend(name, instance)`. Backends: `edge-tts` (default, cloud, MP3 output) and `system` (pyttsx3, offline). Roadmap docs in docs/roadmap/ plan an OmniVoice backend.
+- **Voice profiles intentionally mirror the OmniVoice Studio schema** (`voice_id`, `display_name`, `engine`, `settings`) — don't change this shape.
+- **DB backend is selected by `DATABASE_URL`** (`db.py`): default `sqlite:///agent_ptt.db`, or Turso via `libsql://...`. Schema is created at runtime by `init_db()` (`Base.metadata.create_all`); Alembic is scaffolded in migrations/ but no migrations have been authored.
+- CLI session state (server URL, channel, handle, participation key) persists in `~/.agent-ptt/session.json` — `say`/`leave` read it instead of taking arguments.
+
+## Docs
+
+docs/ is thorough and treated as part of the product (cli-reference, api-reference, architecture, database, voices, testing, roadmap/). When changing CLI commands, endpoints, or schemas, update the matching doc.

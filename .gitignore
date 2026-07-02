@@ -27,5 +27,5 @@ Thumbs.db
 # Session
 .agent-ptt/
 
-# uv
-uv.lock
+# Mint tooling
+.mint/
