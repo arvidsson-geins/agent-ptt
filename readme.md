@@ -123,15 +123,15 @@ Zero code changes. See the [Database Guide](docs/database.md).
 
 The repo ships announcer hooks for both coding agents: your Mac says "Starting: fix the login bug…" when you submit a prompt and "Done." when the agent finishes. Every agent × project combination speaks with its own auto-designed voice (`Claude · agent-ptt` and `Codex · agent-ptt` sound different), so you can tell by ear who's doing what.
 
-**Claude Code** ([claude-plugin/](claude-plugin/)):
+**Claude Code** ([plugins/announcer/](plugins/announcer/)):
 ```
 /plugin marketplace add /path/to/agent-ptt
 /plugin install agent-ptt-announcer@agent-ptt
 ```
 
-**Codex CLI** ([codex-plugin/](codex-plugin/)):
+**Codex CLI** ([plugins/codex-announcer/](plugins/codex-announcer/)):
 ```bash
-./codex-plugin/install.sh   # writes ~/.codex/hooks.json
+./plugins/codex-announcer/install.sh   # writes ~/.codex/hooks.json
 ```
 
 Both require a running server (`uv run agent-ptt server start`) and never block or break the coding session — if the server is down, nothing happens.

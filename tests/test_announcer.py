@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
-ANNOUNCE_PY = REPO_ROOT / "claude-plugin" / "hooks" / "announce.py"
+ANNOUNCE_PY = REPO_ROOT / "plugins" / "announcer" / "hooks" / "announce.py"
 
 spec = importlib.util.spec_from_file_location("announce", ANNOUNCE_PY)
 announce = importlib.util.module_from_spec(spec)
@@ -101,8 +101,8 @@ def test_exits_zero_and_silent_when_server_down():
 # Codex integration
 # ---------------------------------------------------------------------------
 
-CODEX_ANNOUNCE = REPO_ROOT / "codex-plugin" / "announce.py"
-CODEX_INSTALL = REPO_ROOT / "codex-plugin" / "install.sh"
+CODEX_ANNOUNCE = REPO_ROOT / "plugins" / "codex-announcer" / "announce.py"
+CODEX_INSTALL = REPO_ROOT / "plugins" / "codex-announcer" / "install.sh"
 
 
 def test_codex_script_is_identical_to_claude_script():

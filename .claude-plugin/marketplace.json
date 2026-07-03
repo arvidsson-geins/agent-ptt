@@ -8,7 +8,7 @@
       "description": "Announces in an Agent PTT voice channel what Claude Code is working on.",
       "source": {
         "type": "path",
-        "path": "./claude-plugin"
+        "path": "./plugins/announcer"
       }
     }
   ]

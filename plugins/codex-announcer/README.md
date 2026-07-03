@@ -1,6 +1,6 @@
 # Agent PTT Announcer — Codex CLI hooks
 
-The same announcer as the [Claude Code plugin](../claude-plugin/), for
+The same announcer as the [Claude Code plugin](../announcer/), for
 OpenAI's Codex CLI: your Mac announces **"Starting: …"** when you submit
 a prompt and **"Done."** when Codex finishes, through an
 [Agent PTT](https://github.com/arvidsson-geins/agent-ptt) voice channel.
@@ -18,7 +18,7 @@ every project) apart by ear.
 ## Install
 
 ```bash
-./codex-plugin/install.sh
+./plugins/codex-announcer/install.sh
 ```
 
 This writes `~/.codex/hooks.json` (it refuses to overwrite an existing
@@ -30,13 +30,13 @@ one and prints the entries for manual merging instead).
 [[hooks.UserPromptSubmit]]
 [[hooks.UserPromptSubmit.hooks]]
 type = "command"
-command = 'AGENT_PTT_AGENT=Codex python3 "/absolute/path/to/agent-ptt/codex-plugin/announce.py"'
+command = 'AGENT_PTT_AGENT=Codex python3 "/absolute/path/to/agent-ptt/plugins/codex-announcer/announce.py"'
 timeout = 60
 
 [[hooks.Stop]]
 [[hooks.Stop.hooks]]
 type = "command"
-command = 'AGENT_PTT_AGENT=Codex python3 "/absolute/path/to/agent-ptt/codex-plugin/announce.py"'
+command = 'AGENT_PTT_AGENT=Codex python3 "/absolute/path/to/agent-ptt/plugins/codex-announcer/announce.py"'
 timeout = 60
 ```
 
@@ -54,5 +54,5 @@ timeout = 60
 - **Never blocks Codex.** The script forks immediately after parsing the
   event, so the hook returns instantly while the announcement happens in
   the background; every failure path exits silently.
-- `codex-plugin/announce.py` is byte-identical to the Claude plugin's
+- `plugins/codex-announcer/announce.py` is byte-identical to the Claude plugin's
   script (a test enforces this) — fix bugs in one place and copy.

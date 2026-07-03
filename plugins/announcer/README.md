@@ -28,7 +28,7 @@ From a Claude Code session:
 Or try it without installing:
 
 ```bash
-claude --plugin-dir /Users/krille/Documents/Dev/projects/agent-ptt/claude-plugin
+claude --plugin-dir /Users/krille/Documents/Dev/projects/agent-ptt/plugins/announcer
 ```
 
 ## Configuration (environment variables)
