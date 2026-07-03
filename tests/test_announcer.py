@@ -97,6 +97,75 @@ def test_exits_zero_and_silent_when_server_down():
     assert elapsed < 6, f"hook took {elapsed:.1f}s with server down"
 
 
+# ---------------------------------------------------------------------------
+# Codex integration
+# ---------------------------------------------------------------------------
+
+CODEX_ANNOUNCE = REPO_ROOT / "codex-plugin" / "announce.py"
+CODEX_INSTALL = REPO_ROOT / "codex-plugin" / "install.sh"
+
+
+def test_codex_script_is_identical_to_claude_script():
+    """One script serves both tools — fix bugs in one place and copy."""
+    assert CODEX_ANNOUNCE.read_bytes() == ANNOUNCE_PY.read_bytes()
+
+
+def test_agent_name_prefixes_the_handle(monkeypatch):
+    calls = []
+    monkeypatch.setattr(announce, "announce", lambda *a: calls.append(a))
+    monkeypatch.setattr(announce, "AGENT_NAME", "Codex")
+    monkeypatch.setenv("AGENT_PTT_FORK", "0")
+    monkeypatch.setattr(
+        announce.sys,
+        "stdin",
+        io.StringIO(
+            json.dumps(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "prompt": "ship it",
+                    "cwd": "/tmp/my-project",
+                    "session_id": "s1",
+                }
+            )
+        ),
+    )
+    announce.main()
+    assert calls == [("s1", "Codex · my-project", "Starting: ship it")]
+
+
+def test_install_sh_writes_hooks_json(tmp_path):
+    proc = subprocess.run(
+        ["bash", str(CODEX_INSTALL)],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        env={"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)},
+    )
+    assert proc.returncode == 0, proc.stderr
+    hooks_file = tmp_path / ".codex" / "hooks.json"
+    config = json.loads(hooks_file.read_text())
+    command = config["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
+    assert "AGENT_PTT_AGENT=Codex" in command
+    assert str(CODEX_ANNOUNCE) in command
+    assert "__AGENT_PTT_PLUGIN_DIR__" not in command
+    assert "Stop" in config["hooks"]
+
+
+def test_install_sh_refuses_to_overwrite(tmp_path):
+    (tmp_path / ".codex").mkdir()
+    (tmp_path / ".codex" / "hooks.json").write_text('{"hooks": {}}')
+    proc = subprocess.run(
+        ["bash", str(CODEX_INSTALL)],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        env={"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)},
+    )
+    assert proc.returncode == 1
+    assert json.loads((tmp_path / ".codex" / "hooks.json").read_text()) == {"hooks": {}}
+    assert "AGENT_PTT_AGENT=Codex" in proc.stdout  # snippet printed for manual merge
+
+
 def test_exits_zero_on_garbage_stdin():
     proc = subprocess.run(
         [sys.executable, str(ANNOUNCE_PY)],

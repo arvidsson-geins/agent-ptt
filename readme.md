@@ -119,16 +119,22 @@ export DATABASE_URL="libsql://your-db.turso.io?authToken=your-token"
 
 Zero code changes. See the [Database Guide](docs/database.md).
 
-## Claude Code Integration
+## Claude Code & Codex Integration
 
-The repo ships a Claude Code plugin ([claude-plugin/](claude-plugin/)) that announces what Claude is working on through a voice channel — "Starting: fix the login bug…" when you submit a prompt, "Done." when it finishes. Each project speaks with its own auto-designed voice.
+The repo ships announcer hooks for both coding agents: your Mac says "Starting: fix the login bug…" when you submit a prompt and "Done." when the agent finishes. Every agent × project combination speaks with its own auto-designed voice (`Claude · agent-ptt` and `Codex · agent-ptt` sound different), so you can tell by ear who's doing what.
 
+**Claude Code** ([claude-plugin/](claude-plugin/)):
 ```
 /plugin marketplace add /path/to/agent-ptt
 /plugin install agent-ptt-announcer@agent-ptt
 ```
 
-Requires a running server (`uv run agent-ptt server start`). See the [plugin README](claude-plugin/README.md).
+**Codex CLI** ([codex-plugin/](codex-plugin/)):
+```bash
+./codex-plugin/install.sh   # writes ~/.codex/hooks.json
+```
+
+Both require a running server (`uv run agent-ptt server start`) and never block or break the coding session — if the server is down, nothing happens.
 
 ## Tech Stack
 

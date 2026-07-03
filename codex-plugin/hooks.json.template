@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AGENT_PTT_AGENT=Codex python3 \"__AGENT_PTT_PLUGIN_DIR__/announce.py\"",
+            "timeout": 60,
+            "statusMessage": "Announcing task start"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AGENT_PTT_AGENT=Codex python3 \"__AGENT_PTT_PLUGIN_DIR__/announce.py\"",
+            "timeout": 60,
+            "statusMessage": "Announcing task done"
+          }
+        ]
+      }
+    ]
+  }
+}
