@@ -14,28 +14,28 @@ The OmniVoice engine is just a HuggingFace `PreTrainedModel` with two methods: `
 | [Engine Integration](engine-integration.md) | ✅ Shipped | `OmniVoiceTTSBackend` in `agent_ptt/engines/`, device detection, `omnivoice` extra |
 | [Voice Design](voice-design.md) | ✅ Shipped | Instruct profiles, archetypes, `voice design`/`preview`/`clone` CLI |
 | [Auto Voice Designer](auto-voice-designer.md) | ✅ Shipped | Hash + LLM designers with pinning, `voice pinned`/`redesign` CLI |
+| [Distributed Channels](distributed-channels.md) | 📋 Proposal | Supabase/global storage: agents push from anywhere, audio nodes play anywhere |
 
-## Priority Order
+## Priority Order (next up)
 
-1. **Engine Integration** — add `OmniVoiceTTSBackend` (~1-2 days)
-2. **Auto Voice Designer** — hash-based auto-assignment (~1 day), then LLM upgrade (~1-2 days)
-3. **Voice Design** — instruct-based archetypes + voice designer CLI (~1-2 days)
-4. **Voice Cloning** — reference audio cloning (~1 day, optional)
+The original voice roadmap (items 1–4 above) shipped in July 2026. Next:
+
+1. **Distributed Channels, Phase 1** — headless hub (`--no-audio`) deployed centrally, Turso storage (~0.5 day)
+2. **Distributed Channels, Phase 2** — Supabase Postgres backend + first Alembic migration (~1 day)
+3. **Distributed Channels, Phase 3** — pub/sub message bus + `agent-ptt node` audio nodes (~2-3 days)
+4. **Distributed Channels, Phase 4** — auth for the public internet (~1 day)
 
 ## Current State
 
-Agent PTT ships with two TTS backends today:
+Agent PTT ships with three TTS backends:
 
 | Engine | Type | Quality | Offline |
 |--------|------|---------|---------|
 | `edge-tts` | Cloud (Microsoft Edge) | ★★★★ | ❌ |
 | `system` | OS voices (pyttsx3) | ★★ | ✅ |
+| `omnivoice` | Local neural model (optional extra) | ★★★★★ | ✅ |
 
-The roadmap adds:
-
-| Engine | Type | Quality | Offline |
-|--------|------|---------|---------|
-| `omnivoice` | Local neural model | ★★★★★ | ✅ |
+Plus: auto-designed pinned voices per handle (hash or local LLM), voice cloning, a `plugins/` directory with Claude Code + Codex announcers and the `/say` skill, and CI that releases the plugins on version tags.
 
 ## Install Strategy
 
