@@ -1,0 +1,50 @@
+name: Release plugins
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Gates
+        run: |
+          uv run ruff check .
+          uv run pytest -q
+          python3 scripts/validate_plugins.py
+
+      - name: Check plugin versions match the tag
+        run: python3 scripts/check_plugin_versions.py "$GITHUB_REF_NAME"
+
+      - name: Package plugins
+        run: |
+          mkdir -p dist
+          for dir in plugins/*/; do
+            name=$(basename "$dir")
+            [ -f "$dir/.claude-plugin/plugin.json" ] || [ -f "$dir/install.sh" ] || continue
+            (cd plugins && zip -r "../dist/${name}-${GITHUB_REF_NAME}.zip" "$name" \
+              -x "*__pycache__*" -x "*.pyc" -x "*.DS_Store")
+          done
+          ls -la dist/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+            --title "Agent PTT plugins $GITHUB_REF_NAME" \
+            --generate-notes

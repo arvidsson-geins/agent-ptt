@@ -27,7 +27,7 @@ uv run ruff check .                      # lint (auto-fix with --fix)
 uv run ruff format .                     # format
 ```
 
-Run pytest and ruff before committing. Tests fake out TTS and speaker playback (see tests/conftest.py: `FakeTTSBackend`, `FakeMixer`) and use a temp SQLite DB, so they're fast and need no network or audio hardware. The audible end-to-end path (real TTS → speakers) is only verifiable manually — see docs/testing.md. There is no CI.
+Run pytest and ruff before committing. Tests fake out TTS and speaker playback (see tests/conftest.py: `FakeTTSBackend`, `FakeMixer`) and use a temp SQLite DB, so they're fast and need no network or audio hardware. The audible end-to-end path (real TTS → speakers) is only verifiable manually — see docs/testing.md. CI (.github/workflows/ci.yml) runs the same gates plus `scripts/validate_plugins.py`; releases are cut by tagging `vX.Y.Z` after bumping every `plugins/*/.claude-plugin/plugin.json` version to match (see plugins/README.md).
 
 ## Architecture
 
