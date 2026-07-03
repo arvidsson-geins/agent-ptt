@@ -1,0 +1,15 @@
+{
+  "name": "agent-ptt",
+  "owner": { "name": "krille" },
+  "plugins": [
+    {
+      "name": "agent-ptt-announcer",
+      "displayName": "Agent PTT Announcer",
+      "description": "Announces in an Agent PTT voice channel what Claude Code is working on.",
+      "source": {
+        "type": "path",
+        "path": "./claude-plugin"
+      }
+    }
+  ]
+}

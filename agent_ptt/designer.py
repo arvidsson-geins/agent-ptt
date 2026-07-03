@@ -70,7 +70,12 @@ def parse_instruct(raw: str, handle: str) -> str:
         for category, options in _CATEGORIES.items():
             if category in chosen:
                 continue
-            # Word-boundary containment first ("australian accent... maybe"),
+            # Bare category words first: "british" -> "british accent"
+            candidates = [part, f"{part} accent", f"{part} pitch"]
+            if direct := next((c for c in candidates if c in options), None):
+                chosen[category] = direct
+                break
+            # Word-boundary containment ("australian accent... maybe"),
             # preferring the longest option ("very low pitch" over "low pitch")
             contained = [o for o in options if re.search(rf"\b{re.escape(o)}\b", part)]
             if contained:

@@ -1,0 +1,11 @@
+{
+  "name": "agent-ptt-announcer",
+  "version": "0.1.0",
+  "displayName": "Agent PTT Announcer",
+  "description": "Announces in an Agent PTT voice channel what Claude Code is working on — each project speaks with its own auto-designed voice.",
+  "author": { "name": "krille" },
+  "repository": "https://github.com/arvidsson-geins/agent-ptt",
+  "license": "MIT",
+  "keywords": ["voice", "tts", "announcer", "agent-ptt"],
+  "hooks": "./hooks/hooks.json"
+}

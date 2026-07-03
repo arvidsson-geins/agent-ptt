@@ -47,6 +47,15 @@ def test_parse_garbage_falls_back_to_hash():
     assert parse_instruct("I cannot answer that question!", "Claude") == hash_instruct("Claude")
 
 
+def test_parse_bare_category_words_are_completed():
+    """Small LLMs often answer 'british' instead of 'british accent'."""
+    result = parse_instruct("male, young adult, british, medium tone", "Claude")
+    parts = result.split(", ")
+    assert parts[0] == "male"
+    assert parts[1] == "young adult"
+    assert parts[2] == "british accent"
+
+
 def test_parse_close_typos_are_matched():
     result = parse_instruct("femal, britsh accent", "Claude")
     assert result.startswith("female")

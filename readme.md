@@ -119,6 +119,17 @@ export DATABASE_URL="libsql://your-db.turso.io?authToken=your-token"
 
 Zero code changes. See the [Database Guide](docs/database.md).
 
+## Claude Code Integration
+
+The repo ships a Claude Code plugin ([claude-plugin/](claude-plugin/)) that announces what Claude is working on through a voice channel — "Starting: fix the login bug…" when you submit a prompt, "Done." when it finishes. Each project speaks with its own auto-designed voice.
+
+```
+/plugin marketplace add /path/to/agent-ptt
+/plugin install agent-ptt-announcer@agent-ptt
+```
+
+Requires a running server (`uv run agent-ptt server start`). See the [plugin README](claude-plugin/README.md).
+
 ## Tech Stack
 
 - **Server**: FastAPI + uvicorn (WebSocket + REST)
