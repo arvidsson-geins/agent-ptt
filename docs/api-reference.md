@@ -112,6 +112,24 @@ POST /channels/{channel_id}/leave?key_id={key_id}
 
 ---
 
+### Say (post a message via REST)
+
+```
+POST /channels/{channel_id}/say
+```
+
+**Request:**
+```json
+{ "key_id": "1b71a976-...", "text": "Hello over REST" }
+```
+
+Same pipeline as the agent WebSocket: the message is added to history, persisted, synthesized to speech, and broadcast to connected agents. Use this when a WebSocket connection is overkill (scripts, hooks, one-shot integrations).
+
+**Response (200):** the created message (same shape as history entries).
+**Errors:** `404` unknown key or key from another channel, `422` empty text.
+
+---
+
 ### Get Message History
 
 ```

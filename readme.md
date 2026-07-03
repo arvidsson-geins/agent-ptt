@@ -81,6 +81,7 @@ See the [Installation Guide](docs/installation.md) for platform-specific setup.
 | `GET` | `/channels/{id}` | Get channel details |
 | `POST` | `/channels/{id}/join` | Join with handle + voice |
 | `POST` | `/channels/{id}/leave` | Leave a channel |
+| `POST` | `/channels/{id}/say` | Post a message (spoken + broadcast) |
 | `GET` | `/channels/{id}/history` | Get message history |
 | `GET` | `/voices` | List available TTS voices |
 | `WS` | `/channels/{id}/ws?key=...` | Agent communication |

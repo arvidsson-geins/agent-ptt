@@ -99,6 +99,69 @@ def test_history_empty(client):
 
 
 # ---------------------------------------------------------------------------
+# REST say
+# ---------------------------------------------------------------------------
+
+
+def test_rest_say_full_pipeline(client, fake_tts, fake_mixer):
+    channel_id = _create_channel(client)
+    key_id = _join(client, channel_id)
+
+    resp = client.post(
+        f"/channels/{channel_id}/say",
+        json={"key_id": key_id, "text": "hello over REST"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["handle"] == "Claude"
+
+    history = client.get(f"/channels/{channel_id}/history").json()
+    assert [m["text"] for m in history] == ["hello over REST"]
+    assert _wait_for(lambda: fake_mixer.enqueued), "REST message never reached TTS"
+    assert [text for text, _voice in fake_tts.calls] == ["hello over REST"]
+
+
+def test_rest_say_broadcasts_to_ws_clients(client):
+    channel_id = _create_channel(client)
+    key_id = _join(client, channel_id)
+
+    with client.websocket_connect(f"/channels/{channel_id}/ws?key={key_id}") as ws:
+        resp = client.post(
+            f"/channels/{channel_id}/say",
+            json={"key_id": key_id, "text": "REST to WS"},
+        )
+        assert resp.status_code == 200
+        received = ws.receive_json()
+
+    assert received["type"] == "message"
+    assert received["text"] == "REST to WS"
+
+
+def test_rest_say_unknown_key(client):
+    channel_id = _create_channel(client)
+    resp = client.post(
+        f"/channels/{channel_id}/say",
+        json={"key_id": "bogus", "text": "hello"},
+    )
+    assert resp.status_code == 404
+
+
+def test_rest_say_key_from_other_channel(client):
+    channel_a = _create_channel(client, "A")
+    channel_b = _create_channel(client, "B")
+    key_a = _join(client, channel_a)
+
+    resp = client.post(f"/channels/{channel_b}/say", json={"key_id": key_a, "text": "hi"})
+    assert resp.status_code == 404
+
+
+def test_rest_say_empty_text(client):
+    channel_id = _create_channel(client)
+    key_id = _join(client, channel_id)
+    resp = client.post(f"/channels/{channel_id}/say", json={"key_id": key_id, "text": "   "})
+    assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
 # Agent WebSocket
 # ---------------------------------------------------------------------------
 

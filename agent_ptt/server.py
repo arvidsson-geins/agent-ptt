@@ -141,7 +141,8 @@ class JoinChannelRequest(BaseModel):
     voice_id: str | None = None
 
 
-class SendMessageRequest(BaseModel):
+class SayRequest(BaseModel):
+    key_id: str
     text: str
 
 
@@ -209,6 +210,41 @@ async def leave_channel(channel_id: str, key_id: str):
     if not success:
         return JSONResponse({"error": "Participant not found"}, status_code=404)
     return {"status": "left"}
+
+
+@app.post("/channels/{channel_id}/say")
+async def say_message(
+    channel_id: str,
+    req: SayRequest,
+    db: Session = Depends(get_db),
+):
+    """Post a message via REST — same pipeline as the agent WebSocket.
+
+    The message is added to history, persisted, queued for TTS playback,
+    and broadcast to connected WebSocket agents.
+    """
+    if not req.text.strip():
+        return JSONResponse({"error": "Text must not be empty"}, status_code=422)
+
+    participant = ch.get_participant(req.key_id)
+    if participant is None or participant.channel_id != channel_id:
+        return JSONResponse({"error": "Participant not found in channel"}, status_code=404)
+
+    msg = await ch.send_message(req.key_id, req.text, db=db)
+    if msg is None:
+        return JSONResponse({"error": "Participant not found in channel"}, status_code=404)
+
+    await _broadcast_to_channel(
+        channel_id,
+        {
+            "type": "message",
+            "handle": msg.handle,
+            "text": msg.text,
+            "message_id": msg.message_id,
+            "timestamp": msg.timestamp.isoformat(),
+        },
+    )
+    return msg.model_dump()
 
 
 @app.get("/channels/{channel_id}/history")
