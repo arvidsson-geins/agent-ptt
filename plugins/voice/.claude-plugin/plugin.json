@@ -1,0 +1,10 @@
+{
+  "name": "agent-ptt-voice",
+  "version": "0.1.0",
+  "displayName": "Agent PTT Voice",
+  "description": "Speak messages aloud in an Agent PTT voice channel — /say skill for on-demand spoken updates.",
+  "author": { "name": "krille" },
+  "repository": "https://github.com/arvidsson-geins/agent-ptt",
+  "license": "MIT",
+  "keywords": ["voice", "tts", "say", "agent-ptt"]
+}
