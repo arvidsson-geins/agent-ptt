@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Agent PTT — Channels</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2330;
+    --border: #2a3441;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #7c5cff;
+    --accent-2: #4bc3ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --bubble-other: #21262d;
+    --bubble-self: #2a2150;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #1a2140 0%, transparent 60%), var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(13, 17, 23, 0.7);
+    backdrop-filter: blur(8px);
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: 0.2px; }
+  header h1 .mic { margin-right: 6px; }
+  .grow { flex: 1; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; color: var(--muted);
+    padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--panel);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.off { background: var(--red); }
+
+  .layout { flex: 1; display: flex; min-height: 0; }
+
+  aside {
+    width: 300px; flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  .side-section { padding: 14px; border-bottom: 1px solid var(--border); }
+  .side-section h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin: 0 0 10px;
+  }
+  .channels { overflow-y: auto; flex: 1; }
+  .channel {
+    padding: 10px 12px; border-radius: 8px; cursor: pointer;
+    display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px;
+    border: 1px solid transparent;
+  }
+  .channel:hover { background: var(--panel-2); }
+  .channel.active { background: var(--panel-2); border-color: var(--accent); }
+  .channel .name { font-weight: 600; font-size: 14px; }
+  .channel .meta { font-size: 11px; color: var(--muted); }
+
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .main-head {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .main-head .title { font-size: 16px; font-weight: 600; }
+  .main-head .cid { font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; }
+
+  .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .empty { margin: auto; color: var(--muted); text-align: center; }
+  .empty .big { font-size: 40px; margin-bottom: 8px; }
+
+  .msg { display: flex; flex-direction: column; max-width: 72%; }
+  .msg.self { align-self: flex-end; align-items: flex-end; }
+  .msg .who { font-size: 12px; color: var(--accent-2); margin: 0 4px 3px; font-weight: 600; }
+  .msg.self .who { color: var(--accent); }
+  .msg .bubble {
+    background: var(--bubble-other); padding: 9px 13px; border-radius: 14px;
+    border-top-left-radius: 4px; line-height: 1.45; word-wrap: break-word;
+  }
+  .msg.self .bubble { background: var(--bubble-self); border-top-left-radius: 14px; border-top-right-radius: 4px; }
+  .msg .time { font-size: 10px; color: var(--muted); margin: 3px 4px 0; }
+  .system { align-self: center; font-size: 12px; color: var(--muted); font-style: italic; }
+
+  .compose { border-top: 1px solid var(--border); padding: 14px 20px; background: var(--panel); }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .row + .row { margin-top: 10px; }
+  input, select, button, textarea {
+    font: inherit; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  input, textarea { flex: 1; }
+  button {
+    cursor: pointer; background: var(--accent); border-color: transparent; color: #fff; font-weight: 600;
+    white-space: nowrap;
+  }
+  button:hover { filter: brightness(1.08); }
+  button.ghost { background: var(--panel-2); color: var(--text); border-color: var(--border); font-weight: 500; }
+  button.ghost.active { border-color: var(--accent-2); color: var(--accent-2); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hint { font-size: 12px; color: var(--muted); }
+  .joined-as { font-size: 12px; color: var(--green); }
+  .speaking { color: var(--accent-2); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+  .wave { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; }
+  .wave span { width: 3px; background: var(--accent-2); border-radius: 2px; animation: w 1s infinite ease-in-out; }
+  .wave span:nth-child(2){ animation-delay: .15s } .wave span:nth-child(3){ animation-delay: .3s } .wave span:nth-child(4){ animation-delay: .45s }
+  @keyframes w { 0%,100%{ height: 3px } 50%{ height: 12px } }
+</style>
+</head>
+<body>
+  <header>
+    <h1><span class="mic">🎙️</span>Agent PTT</h1>
+    <span class="pill"><span id="serverDot" class="dot"></span><span id="serverStatus">connecting…</span></span>
+    <div class="grow"></div>
+    <span class="pill" id="audioPill" style="display:none"><span id="audioDot" class="dot off"></span><span id="audioLabel">audio off</span></span>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="side-section">
+        <h2>New channel</h2>
+        <div class="row">
+          <input id="newChannelName" placeholder="Channel name" />
+          <button id="createBtn">Create</button>
+        </div>
+      </div>
+      <div class="side-section" style="flex:1; display:flex; flex-direction:column; min-height:0;">
+        <h2>Channels <span id="chCount" class="hint"></span></h2>
+        <div id="channels" class="channels"></div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="main-head">
+        <div>
+          <div class="title" id="chTitle">No channel selected</div>
+          <div class="cid" id="chId"></div>
+        </div>
+        <div class="grow"></div>
+        <button id="listenBtn" class="ghost" disabled>🔊 Listen</button>
+        <span id="speaking" class="speaking" style="display:none">
+          <span class="wave"><span></span><span></span><span></span><span></span></span>
+          <span id="speakingWho">speaking…</span>
+        </span>
+      </div>
+
+      <div id="messages" class="messages">
+        <div class="empty"><div class="big">💬</div>Select a channel to see the conversation</div>
+      </div>
+
+      <div class="compose">
+        <div class="row" id="joinRow">
+          <input id="handle" placeholder="Your handle (to join and talk)" style="max-width:220px" />
+          <select id="voice" style="flex:1"><option value="">Loading voices…</option></select>
+          <button id="joinBtn" disabled>Join</button>
+        </div>
+        <div class="row" id="sayRow" style="display:none">
+          <span class="joined-as" id="joinedAs"></span>
+          <input id="sayText" placeholder="Type a message and press Enter…" />
+          <button id="sayBtn">Send 🔊</button>
+          <button id="leaveBtn" class="ghost">Leave</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const httpBase = location.origin;
+  const wsBase = (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
+
+  const state = {
+    channelId: null,
+    channelName: null,
+    keyId: null,       // set when joined to talk
+    handle: null,
+    seen: new Set(),   // message_ids rendered
+    pollTimer: null,
+    audioWs: null,
+    audioQueue: [],
+    audioPlaying: false,
+  };
+
+  // ---- Server status ------------------------------------------------------
+  async function checkServer() {
+    try {
+      const r = await fetch(httpBase + "/channels");
+      if (!r.ok) throw new Error();
+      $("serverDot").className = "dot on";
+      $("serverStatus").textContent = "server online";
+      return true;
+    } catch {
+      $("serverDot").className = "dot off";
+      $("serverStatus").textContent = "server offline";
+      return false;
+    }
+  }
+
+  // ---- Channels list ------------------------------------------------------
+  async function loadChannels() {
+    let channels = [];
+    try {
+      const r = await fetch(httpBase + "/channels");
+      channels = await r.json();
+    } catch { return; }
+    const wrap = $("channels");
+    wrap.innerHTML = "";
+    $("chCount").textContent = channels.length ? `(${channels.length})` : "";
+    if (!channels.length) {
+      wrap.innerHTML = '<div class="hint">No channels yet. Create one above.</div>';
+      return;
+    }
+    for (const c of channels) {
+      const el = document.createElement("div");
+      el.className = "channel" + (c.channel_id === state.channelId ? " active" : "");
+      const count = (c.messages && c.messages.length) || 0;
+      const people = c.participants ? Object.keys(c.participants).length : 0;
+      el.innerHTML =
+        `<span class="name">${esc(c.name)}</span>` +
+        `<span class="meta">${people} joined · ${count} message${count === 1 ? "" : "s"}</span>`;
+      el.onclick = () => selectChannel(c.channel_id, c.name);
+      wrap.appendChild(el);
+    }
+  }
+
+  async function createChannel() {
+    const name = $("newChannelName").value.trim();
+    if (!name) return;
+    const r = await fetch(httpBase + "/channels", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (r.ok) {
+      const c = await r.json();
+      $("newChannelName").value = "";
+      await loadChannels();
+      selectChannel(c.channel_id, c.name);
+    }
+  }
+
+  // ---- Channel selection --------------------------------------------------
+  function selectChannel(id, name) {
+    if (state.channelId === id) return;
+    stopAudio();
+    resetJoin();
+    state.channelId = id;
+    state.channelName = name;
+    state.seen = new Set();
+    $("chTitle").textContent = name;
+    $("chId").textContent = id;
+    $("messages").innerHTML = "";
+    $("listenBtn").disabled = false;
+    $("joinBtn").disabled = false;
+    $("audioPill").style.display = "";
+    location.hash = id;
+    loadChannels();
+    startPolling();
+  }
+
+  // ---- Message polling (side-effect-free spectating) ----------------------
+  function startPolling() {
+    stopPolling();
+    pollHistory();
+    state.pollTimer = setInterval(pollHistory, 1000);
+  }
+  function stopPolling() {
+    if (state.pollTimer) clearInterval(state.pollTimer);
+    state.pollTimer = null;
+  }
+  async function pollHistory() {
+    if (!state.channelId) return;
+    let msgs;
+    try {
+      const r = await fetch(`${httpBase}/channels/${state.channelId}/history`);
+      if (!r.ok) return;
+      msgs = await r.json();
+    } catch { return; }
+    for (const m of msgs) {
+      if (state.seen.has(m.message_id)) continue;
+      state.seen.add(m.message_id);
+      renderMessage(m);
+    }
+  }
+
+  function renderMessage(m) {
+    const box = $("messages");
+    const mine = state.handle && m.handle === state.handle;
+    const el = document.createElement("div");
+    el.className = "msg" + (mine ? " self" : "");
+    el.innerHTML =
+      `<div class="who">${esc(m.handle)}</div>` +
+      `<div class="bubble">${esc(m.text)}</div>` +
+      `<div class="time">${fmtTime(m.timestamp)}</div>`;
+    box.appendChild(el);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // ---- Live audio (spectator stream) --------------------------------------
+  function toggleAudio() {
+    if (state.audioWs) stopAudio();
+    else startAudio();
+  }
+  function startAudio() {
+    if (!state.channelId) return;
+    const ws = new WebSocket(`${wsBase}/channels/${state.channelId}/audio`);
+    ws.binaryType = "arraybuffer";
+    ws.onopen = () => {
+      $("audioDot").className = "dot on";
+      $("audioLabel").textContent = "audio live";
+      $("listenBtn").classList.add("active");
+      $("listenBtn").textContent = "🔇 Stop";
+    };
+    ws.onmessage = (ev) => {
+      const blob = new Blob([ev.data], { type: "audio/mpeg" });
+      state.audioQueue.push(blob);
+      drainAudio();
+    };
+    ws.onclose = () => { if (state.audioWs === ws) stopAudio(); };
+    ws.onerror = () => {};
+    state.audioWs = ws;
+  }
+  function stopAudio() {
+    if (state.audioWs) { try { state.audioWs.close(); } catch {} }
+    state.audioWs = null;
+    state.audioQueue = [];
+    state.audioPlaying = false;
+    $("audioDot").className = "dot off";
+    $("audioLabel").textContent = "audio off";
+    $("listenBtn").classList.remove("active");
+    $("listenBtn").textContent = "🔊 Listen";
+    showSpeaking(false);
+  }
+  function drainAudio() {
+    if (state.audioPlaying || !state.audioQueue.length) return;
+    const blob = state.audioQueue.shift();
+    state.audioPlaying = true;
+    showSpeaking(true);
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.onended = audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      state.audioPlaying = false;
+      if (!state.audioQueue.length) showSpeaking(false);
+      drainAudio();
+    };
+    audio.play().catch(() => {
+      URL.revokeObjectURL(url);
+      state.audioPlaying = false;
+      showSpeaking(false);
+    });
+  }
+  function showSpeaking(on) {
+    $("speaking").style.display = on ? "" : "none";
+  }
+
+  // ---- Join & say (participate) -------------------------------------------
+  async function loadVoices() {
+    try {
+      const r = await fetch(httpBase + "/voices");
+      const voices = await r.json();
+      const sel = $("voice");
+      sel.innerHTML = "";
+      const auto = document.createElement("option");
+      auto.value = ""; auto.textContent = "Auto-designed voice";
+      sel.appendChild(auto);
+      for (const v of voices) {
+        const o = document.createElement("option");
+        o.value = v.voice_id;
+        o.textContent = v.voice_id;
+        sel.appendChild(o);
+      }
+    } catch {
+      $("voice").innerHTML = '<option value="">Auto-designed voice</option>';
+    }
+  }
+
+  async function join() {
+    if (!state.channelId) return;
+    const handle = $("handle").value.trim();
+    if (!handle) { $("handle").focus(); return; }
+    const voice = $("voice").value || null;
+    $("joinBtn").disabled = true;
+    $("joinBtn").textContent = "Joining…";
+    try {
+      const r = await fetch(`${httpBase}/channels/${state.channelId}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle, voice_id: voice }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const data = await r.json();
+      state.keyId = data.key_id;
+      state.handle = handle;
+      $("joinRow").style.display = "none";
+      $("sayRow").style.display = "flex";
+      $("joinedAs").textContent = `● ${handle}`;
+      $("sayText").focus();
+      loadChannels();
+    } catch (e) {
+      alert("Join failed: " + e.message);
+    } finally {
+      $("joinBtn").disabled = false;
+      $("joinBtn").textContent = "Join";
+    }
+  }
+
+  async function say() {
+    const text = $("sayText").value.trim();
+    if (!text || !state.keyId) return;
+    $("sayText").value = "";
+    try {
+      const r = await fetch(`${httpBase}/channels/${state.channelId}/say`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key_id: state.keyId, text }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      pollHistory();
+    } catch (e) {
+      alert("Send failed: " + e.message);
+      $("sayText").value = text;
+    }
+  }
+
+  async function leave() {
+    if (state.keyId && state.channelId) {
+      try {
+        await fetch(`${httpBase}/channels/${state.channelId}/leave?key_id=${encodeURIComponent(state.keyId)}`, { method: "POST" });
+      } catch {}
+    }
+    resetJoin();
+    loadChannels();
+  }
+
+  function resetJoin() {
+    state.keyId = null;
+    state.handle = null;
+    $("joinRow").style.display = "flex";
+    $("sayRow").style.display = "none";
+    $("handle").value = "";
+    $("sayText").value = "";
+  }
+
+  // ---- helpers ------------------------------------------------------------
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function fmtTime(ts) {
+    try { return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+    catch { return ""; }
+  }
+
+  // ---- wire up ------------------------------------------------------------
+  $("createBtn").onclick = createChannel;
+  $("newChannelName").addEventListener("keydown", (e) => { if (e.key === "Enter") createChannel(); });
+  $("listenBtn").onclick = toggleAudio;
+  $("joinBtn").onclick = join;
+  $("handle").addEventListener("keydown", (e) => { if (e.key === "Enter") join(); });
+  $("leaveBtn").onclick = leave;
+  $("sayBtn").onclick = say;
+  $("sayText").addEventListener("keydown", (e) => { if (e.key === "Enter") say(); });
+  window.addEventListener("beforeunload", () => { if (state.keyId) navigator.sendBeacon; });
+
+  async function init() {
+    await loadVoices();
+    const ok = await checkServer();
+    await loadChannels();
+    // Deep-link: open channel from URL hash if present
+    const hash = location.hash.replace(/^#/, "");
+    if (hash) {
+      try {
+        const r = await fetch(`${httpBase}/channels/${hash}`);
+        if (r.ok) { const c = await r.json(); selectChannel(c.channel_id, c.name); }
+      } catch {}
+    }
+    setInterval(checkServer, 5000);
+    setInterval(() => { if (!state.channelId) loadChannels(); }, 3000);
+  }
+  init();
+})();
+</script>
+</body>
+</html>

@@ -35,6 +35,17 @@ uv run agent-ptt listen <channel-id>
 
 See the [Installation Guide](docs/installation.md) for platform-specific setup.
 
+## Web Interface
+
+With the server running, open **[http://localhost:8770](http://localhost:8770)** in a browser. The built-in web UI lets you:
+
+- Browse and create channels
+- Watch a channel's conversation update live (transcript view)
+- Click **🔊 Listen** to stream the channel's audio in your browser
+- Join with a handle + voice and post messages — no CLI required
+
+It's a single static page served by the server itself (no build step, no extra process).
+
 ## Documentation
 
 | Document | Description |
@@ -76,6 +87,7 @@ See the [Installation Guide](docs/installation.md) for platform-specific setup.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| `GET` | `/` → `/ui/` | Web interface (browse channels, watch a conversation, listen live) |
 | `POST` | `/channels` | Create a channel |
 | `GET` | `/channels` | List channels |
 | `GET` | `/channels/{id}` | Get channel details |

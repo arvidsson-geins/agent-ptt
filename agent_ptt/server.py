@@ -6,9 +6,11 @@ import asyncio
 import contextlib
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -125,6 +127,19 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+# ---------------------------------------------------------------------------
+# Web UI — a single-page spectator/participant interface served at /ui
+# ---------------------------------------------------------------------------
+
+_STATIC_DIR = Path(__file__).parent / "static"
+
+
+@app.get("/")
+async def root():
+    """Redirect the bare root to the web UI."""
+    return RedirectResponse(url="/ui/")
 
 
 # ---------------------------------------------------------------------------
@@ -447,3 +462,10 @@ async def spectator_audio_stream(websocket: WebSocket, channel_id: str):
         logger.error(f"Audio stream error: {e}")
     finally:
         mixer.unregister_stream_listener(listener_queue)
+
+
+# ---------------------------------------------------------------------------
+# Static web UI mount — kept last so it never shadows API/WebSocket routes
+# ---------------------------------------------------------------------------
+
+app.mount("/ui", StaticFiles(directory=_STATIC_DIR, html=True), name="ui")

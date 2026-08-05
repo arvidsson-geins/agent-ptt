@@ -71,9 +71,19 @@ Per-channel `AudioMixer` with:
 ### `agent_ptt/server.py`
 
 FastAPI application with:
-- 7 REST endpoints (channels, voices, history)
+- REST endpoints (channels, voices, history)
 - 2 WebSocket endpoints (agent communication, spectator audio)
 - Background TTS worker per channel (consumes message queue → synthesizes → enqueues audio)
+- Static web UI mounted at `/ui` (root `/` redirects there); the mount is added
+  last so it never shadows the API or WebSocket routes
+
+### `agent_ptt/static/`
+
+Single-page web interface (`index.html`, vanilla JS — no build step). Serves as
+a browser client for the same API: lists/creates channels, renders a channel's
+conversation by polling `/history`, streams live audio from the `/audio`
+WebSocket (each frame is one self-contained clip, played in order), and can join
+with a handle + voice to post messages.
 
 ### `agent_ptt/cli.py`
 

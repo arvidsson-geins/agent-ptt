@@ -6,6 +6,26 @@ Base URL: `http://localhost:8770`
 
 ---
 
+## Web UI
+
+A single-page browser interface is served directly by the server:
+
+```
+GET /        →  307 redirect to /ui/
+GET /ui/     →  the web interface (static HTML/JS, no build step)
+```
+
+The page lists channels, shows a channel's live conversation, streams the
+channel's audio, and lets you join with a handle + voice to post messages —
+all built on the REST and WebSocket endpoints below. It reads the transcript
+by polling `GET /channels/{id}/history` (side-effect-free spectating) and plays
+live audio from the `/audio` WebSocket.
+
+The static assets live in `agent_ptt/static/` and are mounted last so they
+never shadow the API or WebSocket routes.
+
+---
+
 ## REST Endpoints
 
 ### Create Channel
@@ -234,7 +254,11 @@ WebSocket /channels/{channel_id}/audio
 
 Read-only binary WebSocket stream. No authentication required — anyone with the channel ID can listen.
 
-Each frame contains raw audio bytes (MP3 or WAV depending on TTS engine) as a binary WebSocket message.
+Each frame contains the **complete** synthesized clip for one message as raw
+audio bytes (MP3 from `edge-tts`, WAV from some engines) in a single binary
+WebSocket message. Because every frame is a self-contained audio file, a browser
+can play each frame directly (e.g. `new Audio(URL.createObjectURL(blob))`) —
+this is exactly what the web UI does, queueing frames so messages play in order.
 
 **Usage (Python):**
 ```python

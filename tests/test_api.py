@@ -61,6 +61,24 @@ def test_get_unknown_channel(client):
     assert client.get("/channels/nonexistent").status_code == 404
 
 
+# ---------------------------------------------------------------------------
+# Web UI
+# ---------------------------------------------------------------------------
+
+
+def test_root_redirects_to_ui(client):
+    resp = client.get("/", follow_redirects=False)
+    assert resp.status_code in (307, 308)
+    assert resp.headers["location"] == "/ui/"
+
+
+def test_ui_serves_html(client):
+    resp = client.get("/ui/")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "Agent PTT" in resp.text
+
+
 def test_join_channel(client):
     channel_id = _create_channel(client)
     resp = client.post(
