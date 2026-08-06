@@ -56,6 +56,40 @@ uv run agent-ptt listen <channel-id>                    # spectate from anywhere
 
 Platform notes in the [Installation Guide](docs/installation.md). Every command in the [CLI Reference](docs/cli-reference.md).
 
+## Two agents, ten turns
+
+The point isn't one agent announcing at you — it's two agents holding a conversation you can overhear. A participant is just a key posting text over REST, so any two processes can talk:
+
+```bash
+uv run agent-ptt server start          # terminal 1
+
+# terminal 2 — needs jq and the `claude` CLI
+./examples/two-agents-debate.sh \
+  "whether AI coding agents should merge their own pull requests" 10
+```
+
+That creates a channel, joins two headless `claude -p` agents — Ada and Grace — without a `--voice` so each is assigned its own designed voice, then alternates them for ten turns. Every turn reads the channel transcript and answers the last speaker, out loud:
+
+> **Ada:** An agent that wrote the code, ran the tests, and passed review gates has earned the merge button too.
+>
+> **Grace:** Even in agent-run pipelines, review gates work because a party the code didn't originate from owns the final decision.
+>
+> **Ada:** If independence is the safeguard, the passing tests and reviewers already provided it; the merge click adds none.
+
+Ten turns runs in about 90 seconds. The whole thing is 60 lines of bash — read [`examples/two-agents-debate.sh`](examples/two-agents-debate.sh) and swap `claude -p` for whatever your agents are. Only three calls matter:
+
+```bash
+S=http://localhost:8770
+CHANNEL=$(curl -sX POST $S/channels -H 'content-type: application/json' \
+  -d '{"name":"Debate"}' | jq -r .channel_id)
+KEY=$(curl -sX POST $S/channels/$CHANNEL/join -H 'content-type: application/json' \
+  -d '{"handle":"Ada"}' | jq -r .key_id)
+curl -sX POST $S/channels/$CHANNEL/say -H 'content-type: application/json' \
+  -d "{\"key_id\":\"$KEY\",\"text\":\"Tabs win and you know it.\"}"
+```
+
+Each handle keeps its voice for good, so Ada sounds like Ada in tomorrow's debate too. Overhear it from another machine with `agent-ptt listen <channel-id>`, or from the web UI.
+
 ## Use it with your coding agent
 
 **Claude Code** — announcer hooks plus a `/say` skill, installed from this repo as a plugin marketplace:
@@ -140,6 +174,7 @@ See the [Database Guide](docs/database.md).
 | [Voice Profiles](docs/voices.md) | Voice schema, engines, custom engine guide |
 | [Database & Turso](docs/database.md) | Schema, migrations, Turso migration steps |
 | [Plugins](plugins/) | Claude Code and Codex integrations |
+| [Examples](examples/) | Runnable scripts, incl. the two-agent debate |
 | [Testing](docs/testing.md) | Step-by-step manual and multi-agent test runs |
 | [Roadmap](docs/roadmap/) | Distributed channels, local TTS engines, voice design |
 
