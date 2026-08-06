@@ -158,6 +158,84 @@ TEAM="Ada|the parser|en-GB-SoniaNeural;Roy|the tests, and nothing else|en-IE-Con
 
 Work happens in a fresh temp directory unless you set `PROJECT_DIR`. Read [`examples/work-session.sh`](examples/work-session.sh) — the agents are `claude -p` calls with `--allowedTools Read Write Edit Glob Grep`, and swapping in your own is a one-line change.
 
+## Three real Claude Code sessions, one real repo
+
+`work-session.sh` scripts the turns. This one doesn't. It opens three full Claude Code sessions in tmux panes, pointed at a repository you actually care about, and the channel is how they hear each other — and you.
+
+```bash
+./examples/crew.sh ~/dev/my-repo "add a --json flag to every command"
+```
+
+You get a tiled tmux window, one live pane per seat that you can type into at any time, and a channel to join from the web UI on any device on your network.
+
+They share **one working tree on a scratch branch** (`ptt/crew`), the way three people share one table. Your own checkout is never touched.
+
+A real run, verbatim from the channel — the goal was a `channel delete` command in this repo:
+
+```
+Mara    Starting: You are Mara. You own the implementation …
+Kai     Starting: You are Kai. You own the tests and the docs …
+Roy     Starting: You are Roy. You own reviewing what the other two wrote …
+
+Krille  Deleting a channel must also delete its messages, and return 404 if the channel isn't there.
+
+Roy     I fixed channel delete so it also purges the channel's messages and keys
+        from the database, with a regression test, committed.
+Mara    Delete endpoint and CLI command are staged; Roy, please run the test suite
+        for me — I'm blocked from running pytest myself.
+Kai     Delete tests and docs are committed — Mara, your endpoint and CLI rode along
+        in my commit, and pytest is blocked here, someone please run it.
+```
+
+What was on the branch when they stopped: two commits, a `DELETE /channels/{id}` endpoint, an `agent-ptt channel delete` command, API and CLI docs, and seven new tests. The suite went from 158 to 165, all green. Both halves of the one sentence Krille said are in the code.
+
+### How a seat behaves
+
+Every session runs with two hooks ([`examples/crew/hook.py`](examples/crew/hook.py)):
+
+- **UserPromptSubmit** → announces what it's starting on.
+- **Stop** → speaks one sentence about the turn it just finished, and if the room said anything while it was working, hands it those words and keeps it going instead of letting it fall idle.
+
+That second hook is the whole trick, and most of it is deciding what *not* to pass on:
+
+- **You are always relayed.** You're at the table, so your line is a decision, not a suggestion.
+- **A teammate is relayed only when they say your name** — which, under these rules, means they're genuinely blocked on you. Everything else they say, you simply overhear.
+
+Without that filter three agents will happily spend an afternoon agreeing with each other.
+
+### Knobs
+
+```bash
+CREW="Ada|the parser|en-GB-SoniaNeural;Roy|the tests, and nothing else|en-IE-ConnorNeural" \
+  ./examples/crew.sh ~/dev/my-repo "make the parser handle CRLF"
+```
+
+| | |
+|---|---|
+| `CREW` | `Name\|what they own\|voice-id;…` — any number of seats. Leave the voice empty and one is designed for them |
+| `CREW_BRANCH` | scratch branch to work on (default `ptt/crew`) |
+| `CREW_DIR` | where the shared worktree goes (default `~/.agent-ptt/crew/<repo>`) |
+| `CREW_ALLOWED_TOOLS` | comma-separated; default `Read,Write,Edit,Glob,Grep,Bash(git:*)` |
+| `CREW_PERMISSION_MODE` | passed to `claude --permission-mode` (default `acceptEdits`) |
+
+Anything outside the allowlist still asks — you're sitting right there in the pane and can answer. In the run above that meant `pytest`, which is why all three seats mention it. Add your test runner and they'll stop asking:
+
+```bash
+CREW_ALLOWED_TOOLS='Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(uv run pytest:*)' \
+  ./examples/crew.sh ~/dev/my-repo "the goal"
+```
+
+### Keeping the work, or throwing it away
+
+```bash
+git -C ~/.agent-ptt/crew/my-repo log --oneline ptt/crew   # read what they did
+git -C ~/dev/my-repo merge ptt/crew                       # keep it
+git -C ~/dev/my-repo worktree remove ~/.agent-ptt/crew/my-repo --force \
+  && git -C ~/dev/my-repo branch -D ptt/crew              # or bin the lot
+```
+
+Needs `tmux`, `git`, `jq`, `python3` and the `claude` CLI on your PATH, and a Claude Code that has already been through its first-run setup — three panes asking you to pick a theme is a bad first thirty seconds.
+
 ## Use it with your coding agent
 
 **Claude Code** — announcer hooks plus a `/say` skill, installed from this repo as a plugin marketplace:
