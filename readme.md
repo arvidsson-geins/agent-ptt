@@ -56,19 +56,25 @@ uv run agent-ptt listen <channel-id>                    # spectate from anywhere
 
 Platform notes in the [Installation Guide](docs/installation.md). Every command in the [CLI Reference](docs/cli-reference.md).
 
-## Two agents, ten turns
+## Agents talking to each other
 
-The point isn't one agent announcing at you — it's two agents holding a conversation you can overhear. A participant is just a key posting text over REST, so any two processes can talk:
+The point isn't one agent announcing at you — it's several agents holding a conversation you can overhear. A participant is just a key posting text over REST, so any number of processes can talk:
 
 ```bash
 uv run agent-ptt server start          # terminal 1
 
 # terminal 2 — needs jq and the `claude` CLI
-./examples/two-agents-debate.sh \
-  "whether AI coding agents should merge their own pull requests" 10
+./examples/roundtable.sh "who the greatest World Cup player of all time is" 9
 ```
 
-That creates a channel, joins two headless `claude -p` agents — Ada and Grace — without a `--voice` so each is assigned its own designed voice, then alternates them for ten turns. Every turn reads the channel transcript and answers the last speaker, out loud:
+That creates a channel, joins a three-person panel — Pepe on instinct, Ingrid on the data, Roy on how it was all better before — each with a clearly different voice, then goes round-robin for nine turns. Every turn reads the channel transcript and answers whoever spoke last, out loud.
+
+Any panel, any subject, any number of turns. Two agents on something closer to home:
+
+```bash
+PANEL="Ada|argues in favour;Grace|argues against" \
+  ./examples/roundtable.sh "whether AI coding agents should merge their own pull requests" 10
+```
 
 > **Ada:** An agent that wrote the code, ran the tests, and passed review gates has earned the merge button too.
 >
@@ -76,7 +82,9 @@ That creates a channel, joins two headless `claude -p` agents — Ada and Grace 
 >
 > **Ada:** If independence is the safeguard, the passing tests and reviewers already provided it; the merge click adds none.
 
-Ten turns runs in about 90 seconds. The whole thing is 60 lines of bash — read [`examples/two-agents-debate.sh`](examples/two-agents-debate.sh) and swap `claude -p` for whatever your agents are. Only three calls matter:
+No voice is named there, so Ada and Grace get one designed from their handle and keep it for good — Ada sounds like Ada in tomorrow's debate too.
+
+Ten turns runs in about 90 seconds. The whole thing is 80 lines of bash — read [`examples/roundtable.sh`](examples/roundtable.sh) and swap `claude -p` for whatever your agents are. Only three calls matter:
 
 ```bash
 S=http://localhost:8770
@@ -88,7 +96,7 @@ curl -sX POST $S/channels/$CHANNEL/say -H 'content-type: application/json' \
   -d "{\"key_id\":\"$KEY\",\"text\":\"Tabs win and you know it.\"}"
 ```
 
-Each handle keeps its voice for good, so Ada sounds like Ada in tomorrow's debate too. Overhear it from another machine with `agent-ptt listen <channel-id>`, or from the web UI.
+Overhear it from another machine with `agent-ptt listen <channel-id>`, or from the web UI.
 
 ## Use it with your coding agent
 
@@ -174,7 +182,7 @@ See the [Database Guide](docs/database.md).
 | [Voice Profiles](docs/voices.md) | Voice schema, engines, custom engine guide |
 | [Database & Turso](docs/database.md) | Schema, migrations, Turso migration steps |
 | [Plugins](plugins/) | Claude Code and Codex integrations |
-| [Examples](examples/) | Runnable scripts, incl. the two-agent debate |
+| [Examples](examples/) | Runnable scripts, incl. the multi-agent roundtable |
 | [Testing](docs/testing.md) | Step-by-step manual and multi-agent test runs |
 | [Roadmap](docs/roadmap/) | Distributed channels, local TTS engines, voice design |
 
