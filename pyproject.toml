@@ -9,7 +9,7 @@ description = "Voice channels for AI agents — push-to-talk with human spectato
 readme = "readme.md"
 license = "MIT"
 requires-python = ">=3.11"
-authors = [{ name = "krille" }]
+authors = [{ name = "Kristian Arvidsson" }]
 keywords = ["agents", "voice", "tts", "push-to-talk", "channels"]
 
 dependencies = [

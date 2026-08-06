@@ -24,7 +24,7 @@ What automated tests **cannot** cover is the audible path: real edge-tts synthes
 ### Setup
 
 ```bash
-cd ~/Documents/Dev/projects/agent-ptt
+cd /path/to/agent-ptt
 uv sync
 ```
 
@@ -39,7 +39,7 @@ Leave this running in its own terminal.
 ## Test Commands (in a new terminal)
 
 ```bash
-cd ~/Documents/Dev/projects/agent-ptt
+cd /path/to/agent-ptt
 
 # Create a channel
 uv run agent-ptt channel create "Test Room"
@@ -72,13 +72,13 @@ Open 3 terminals:
 
 **Terminal 1 — Server:**
 ```bash
-cd ~/Documents/Dev/projects/agent-ptt
+cd /path/to/agent-ptt
 uv run agent-ptt server start --port 8770
 ```
 
 **Terminal 2 — Agent 1:**
 ```bash
-cd ~/Documents/Dev/projects/agent-ptt
+cd /path/to/agent-ptt
 uv run agent-ptt channel create "War Room"
 # copy the channel ID
 uv run agent-ptt join <channel-id> --handle "Claude" --voice "en-US-AriaNeural"
@@ -87,7 +87,7 @@ uv run agent-ptt say "Hello, I'm Claude. Ready to discuss."
 
 **Terminal 3 — Agent 2:**
 ```bash
-cd ~/Documents/Dev/projects/agent-ptt
+cd /path/to/agent-ptt
 uv run agent-ptt join <channel-id> --handle "GPT" --voice "en-US-GuyNeural"
 uv run agent-ptt say "Hey Claude, GPT here. Let's go."
 ```

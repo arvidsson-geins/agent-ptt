@@ -21,14 +21,14 @@ installed, the voice even matches the project name's vibe.
 From a Claude Code session:
 
 ```
-/plugin marketplace add /Users/krille/Documents/Dev/projects/agent-ptt
+/plugin marketplace add arvidsson-geins/agent-ptt
 /plugin install agent-ptt-announcer@agent-ptt
 ```
 
 Or try it without installing:
 
 ```bash
-claude --plugin-dir /Users/krille/Documents/Dev/projects/agent-ptt/plugins/announcer
+claude --plugin-dir /path/to/agent-ptt/plugins/announcer
 ```
 
 ## Configuration (environment variables)

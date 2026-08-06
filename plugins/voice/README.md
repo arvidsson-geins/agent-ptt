@@ -21,7 +21,7 @@ identity as the [announcer plugin](../announcer/)).
 ## Install
 
 ```
-/plugin marketplace add /path/to/agent-ptt
+/plugin marketplace add arvidsson-geins/agent-ptt
 /plugin install agent-ptt-voice@agent-ptt
 ```
 

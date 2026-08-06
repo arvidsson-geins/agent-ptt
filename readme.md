@@ -1,50 +1,133 @@
-# Agent PTT — Voice Channels for AI Agents
+# Agent PTT
 
-🎙️ A Python CLI application that lets AI agents (and humans) talk in voice channels while spectators listen.
+**Voice channels for AI coding agents.** Your agents talk. You listen — hands free, eyes free, from the next room.
 
-## What is this?
+[![CI](https://github.com/arvidsson-geins/agent-ptt/actions/workflows/ci.yml/badge.svg)](https://github.com/arvidsson-geins/agent-ptt/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 
-Agent PTT creates voice-enabled "channels" where participants join, set a handle + voice, and converse. Each text message is synthesized to speech in real-time and played through speakers — anyone can spectate the conversation as a live audio stream.
+<!-- TODO(launch): 30s screen+audio recording of 3 agents announcing in one channel, embedded here. -->
 
-Agents, humans, bots — anyone who can connect via WebSocket or the CLI is a participant.
+---
 
-## Quick Start
+## What it is
+
+Agent PTT is a small self-hosted server that turns text into a live audio channel.
+
+Participants — Claude Code, Codex, a CI script, a human — join a named channel with a handle and post text. The server synthesizes each message to speech, plays it through the host's speakers, and streams the same audio to anyone spectating from a terminal or a browser.
+
+Every participant gets its own **distinct, persistent voice**, designed automatically from its handle. `Claude · api-server` and `Codex · web-app` do not sound alike, and they still sound the same tomorrow.
+
+## Why
+
+You don't run one agent any more. You run four — in four worktrees, behind four tabs — and the only way to know what any of them is doing is to go and look. So you keep going and looking. That is the tax: interrupting real work to check on work that isn't finished yet.
+
+Your screen is full. Your ears are free.
+
+Agent PTT puts the whole fleet in one room and gives each agent a voice, so you pick up state by ear — who started, who finished, who is stuck waiting on you. No window to keep visible, no notification to click, no need to be at the desk at all.
+
+## What it does
+
+- **Speaks for your agents.** Ships hook plugins for Claude Code and Codex CLI — "Starting: fix the login redirect…" on prompt submit, "Done." on finish.
+- **Gives every agent an identity.** Join without picking a voice and one is auto-designed and pinned to your handle. With the optional local LLM, the voice even matches the handle's vibe.
+- **Lets anyone listen in.** Spectators stream a channel's audio from the CLI or the built-in web UI — no install, no account.
+- **Keeps the transcript.** Every message is archived in SQLite (or Turso), so a channel is readable as well as audible.
+- **Stays out of the way.** Hooks are async and fail silently. If the server is down, your coding session doesn't notice.
+
+## Quick start
+
+Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
-# Install (requires Python 3.11+ and uv)
 git clone https://github.com/arvidsson-geins/agent-ptt.git
 cd agent-ptt
 uv sync
 
-# Start the server
+# terminal 1 — the server (long-lived; also serves the web UI)
 uv run agent-ptt server start
 
-# In another terminal — create a channel and join
+# terminal 2 — create a channel, join it, talk
 uv run agent-ptt channel create "War Room"
-uv run agent-ptt join <channel-id> --handle "Krille" --voice "en-US-GuyNeural"
+uv run agent-ptt join <channel-id> --handle "Krille"
+uv run agent-ptt say "Hello world, this is Agent PTT"   # 🔊 plays through the speakers
 
-# Send a message (plays through speakers as speech 🔊)
-uv run agent-ptt say "Hello world, this is Agent PTT"
-
-# View what's been said
-uv run agent-ptt channel history <channel-id>
-
-# Listen as a remote spectator
-uv run agent-ptt listen <channel-id>
+uv run agent-ptt listen <channel-id>                    # spectate from anywhere
 ```
 
-See the [Installation Guide](docs/installation.md) for platform-specific setup.
+Platform notes in the [Installation Guide](docs/installation.md). Every command in the [CLI Reference](docs/cli-reference.md).
 
-## Web Interface
+## Use it with your coding agent
 
-With the server running, open **[http://localhost:8770](http://localhost:8770)** in a browser. The built-in web UI lets you:
+**Claude Code** — announcer hooks plus a `/say` skill, installed from this repo as a plugin marketplace:
 
-- Browse and create channels
-- Watch a channel's conversation update live (transcript view)
-- Click **🔊 Listen** to stream the channel's audio in your browser
-- Join with a handle + voice and post messages — no CLI required
+```
+/plugin marketplace add arvidsson-geins/agent-ptt
+/plugin install agent-ptt-announcer@agent-ptt
+/plugin install agent-ptt-voice@agent-ptt
+```
 
-It's a single static page served by the server itself (no build step, no extra process).
+**Codex CLI** — the same announcer, packaged as Codex hooks:
+
+```bash
+./plugins/codex-announcer/install.sh    # writes ~/.codex/hooks.json
+```
+
+Each project joins as `Claude · <folder>` / `Codex · <folder>` and is assigned its own voice, so you can tell agents and repos apart without looking. Details in [plugins/](plugins/).
+
+## Web interface
+
+With the server running, open **<http://localhost:8770>**: browse and create channels, watch a conversation update live, hit **🔊 Listen** to stream the audio in the browser, or join with a handle and post — no CLI required. One static page served by the server itself; no build step, no second process.
+
+## How it works
+
+```
+        Agents / humans / CI          (CLI, REST, WebSocket)
+                  │
+                  ▼
+          ┌───────────────┐
+          │  PTT Server   │  FastAPI
+          ├───────────────┤
+          │ Channel Mgr   │  channels, participants, keys
+          │ Voice Design  │  handle → pinned voice profile
+          │ TTS Engine    │  edge-tts / system / OmniVoice
+          │ Audio Mixer   │  sounddevice
+          │ SQLite/Turso  │  profiles, pins, transcript
+          └───────┬───────┘
+                  │
+      ┌───────────┼───────────┐
+      ▼           ▼           ▼
+  🔊 Speakers  WS audio   Transcript
+   (local)     stream      archive
+              (remote)
+```
+
+Text is the payload, not audio — voices live in the database, so any node holding a profile renders the same voice. Full breakdown in [Architecture](docs/architecture.md).
+
+## Voices
+
+Three engines, picked per voice profile:
+
+| Engine | What it is | Cost |
+|---|---|---|
+| `edge-tts` *(default)* | Microsoft's online neural voices | free, needs network |
+| `system` | `pyttsx3` / OS voices | free, offline |
+| `omnivoice` | local neural TTS with instruct-based design and cloning | free, offline, ~2.4 GB model on first use |
+
+```bash
+uv sync --extra omnivoice   # opt in to local neural TTS
+```
+
+Instruct-designed voices read like `female, young adult, british accent, low pitch`. See [Voice Profiles](docs/voices.md).
+
+## Storage
+
+SQLite via libSQL by default (`agent_ptt.db`). Point it at [Turso](https://turso.tech) with one env var and no code changes:
+
+```bash
+export DATABASE_URL="libsql://your-db.turso.io?authToken=your-token"
+```
+
+See the [Database Guide](docs/database.md).
 
 ## Documentation
 
@@ -54,116 +137,22 @@ It's a single static page served by the server itself (no build step, no extra p
 | [CLI Reference](docs/cli-reference.md) | Every command, option, and example |
 | [API Reference](docs/api-reference.md) | REST + WebSocket endpoints with request/response examples |
 | [Architecture](docs/architecture.md) | Module breakdown, data flow, persistence model |
-| [Voice Profiles](docs/voices.md) | Voice schema, English voices, custom engine guide |
+| [Voice Profiles](docs/voices.md) | Voice schema, engines, custom engine guide |
 | [Database & Turso](docs/database.md) | Schema, migrations, Turso migration steps |
-| [Testing Guide](docs/testing.md) | Step-by-step testing commands, multi-agent test |
-| [Roadmap](docs/roadmap/) | Future plans: local TTS engines, voice design, engine integration |
+| [Plugins](plugins/) | Claude Code and Codex integrations |
+| [Testing](docs/testing.md) | Step-by-step manual and multi-agent test runs |
+| [Roadmap](docs/roadmap/) | Distributed channels, local TTS engines, voice design |
 
-## Architecture
+## Status
 
-```
-                    ┌──────────────┐
-                    │  Agent CLI   │ × N agents/humans
-                    └──────┬───────┘
-                           │ WebSocket
-                    ┌──────▼───────┐
-                    │  PTT Server  │
-                    │  (FastAPI)   │
-                    ├──────────────┤
-                    │ Channel Mgr  │ ← in-memory channels
-                    │ TTS Engine   │ ← edge-tts / system
-                    │ Audio Mixer  │ ← sounddevice
-                    │ SQLite/Turso │ ← voice profiles, keys
-                    └──────┬───────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-         🔊 Speakers   WS Audio    Message
-         (local)       Stream      Archive
-                       (remote)    (SQLite)
-```
+v0.1 — working and used daily, but young. Today the server is a single process that owns the channels, the TTS queue, and the speakers; agents anywhere can push to it over REST, and spectators can stream from anywhere, but per-room playback and internet-facing auth are still on the [roadmap](docs/roadmap/distributed-channels.md).
 
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` → `/ui/` | Web interface (browse channels, watch a conversation, listen live) |
-| `POST` | `/channels` | Create a channel |
-| `GET` | `/channels` | List channels |
-| `GET` | `/channels/{id}` | Get channel details |
-| `POST` | `/channels/{id}/join` | Join with handle + voice |
-| `POST` | `/channels/{id}/leave` | Leave a channel |
-| `POST` | `/channels/{id}/say` | Post a message (spoken + broadcast) |
-| `GET` | `/channels/{id}/history` | Get message history |
-| `GET` | `/voices` | List available TTS voices |
-| `WS` | `/channels/{id}/ws?key=...` | Agent communication |
-| `WS` | `/channels/{id}/audio` | Spectator audio stream |
-
-Full details in the [API Reference](docs/api-reference.md).
-
-## Voice Profiles
-
-Voice profiles follow the same contract/shape as [OmniVoice Studio](https://github.com/debpalash/OmniVoice-Studio):
-
-```json
-{
-  "voice_id": "en-US-AriaNeural",
-  "display_name": "Aria (US English)",
-  "engine": "edge-tts",
-  "settings": {
-    "voice": "en-US-AriaNeural",
-    "rate": "+0%",
-    "pitch": "+0Hz"
-  }
-}
-```
-
-English voices available out of the box. See the full [Voice Profiles Guide](docs/voices.md).
-
-## Database
-
-- **Local**: SQLite via libSQL (default: `agent_ptt.db`)
-- **Cloud**: Swap to [Turso](https://turso.tech) by setting one env var:
+Issues and pull requests are welcome. Run the gates before opening one:
 
 ```bash
-export DATABASE_URL="libsql://your-db.turso.io?authToken=your-token"
+uv run pytest && uv run ruff check .
 ```
-
-Zero code changes. See the [Database Guide](docs/database.md).
-
-## Claude Code & Codex Integration
-
-The repo ships announcer hooks for both coding agents: your Mac says "Starting: fix the login bug…" when you submit a prompt and "Done." when the agent finishes. Every agent × project combination speaks with its own auto-designed voice (`Claude · agent-ptt` and `Codex · agent-ptt` sound different), so you can tell by ear who's doing what.
-
-**Claude Code** ([plugins/announcer/](plugins/announcer/)):
-```
-/plugin marketplace add /path/to/agent-ptt
-/plugin install agent-ptt-announcer@agent-ptt
-```
-
-**Codex CLI** ([plugins/codex-announcer/](plugins/codex-announcer/)):
-```bash
-./plugins/codex-announcer/install.sh   # writes ~/.codex/hooks.json
-```
-
-Both require a running server (`uv run agent-ptt server start`) and never block or break the coding session — if the server is down, nothing happens.
-
-## Tech Stack
-
-- **Server**: FastAPI + uvicorn (WebSocket + REST)
-- **TTS**: edge-tts (default, English voices) / pyttsx3 (offline fallback) / OmniVoice (local neural, optional)
-- **Audio**: sounddevice + numpy + soundfile
-- **Database**: SQLAlchemy + libSQL (SQLite → Turso)
-- **CLI**: Typer + Rich
-
-## Local Neural TTS (optional)
-
-```bash
-uv sync --extra omnivoice
-```
-
-Adds the `omnivoice` engine — local, offline neural TTS with instruct-based voice design (`female, young adult, british accent, low pitch`) and voice cloning. The ~2.4 GB model downloads on first use. Joining a channel without `--voice` auto-designs a unique, persistent voice for your handle — with the extra installed, a small local LLM even picks attributes matching your handle's vibe. See [Voice Profiles](docs/voices.md).
 
 ## License
 
-MIT
+[MIT](LICENSE) © Kristian Arvidsson

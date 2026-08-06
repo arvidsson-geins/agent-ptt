@@ -13,10 +13,10 @@ over plain REST and are stdlib-only — no dependencies beyond `python3`.
 
 ## Installing
 
-Claude Code plugins (from a checkout, or `arvidsson-geins/agent-ptt` once you have repo access):
+Claude Code plugins (straight from GitHub, or from a local checkout):
 
 ```
-/plugin marketplace add /path/to/agent-ptt
+/plugin marketplace add arvidsson-geins/agent-ptt      # or: /path/to/agent-ptt
 /plugin install agent-ptt-announcer@agent-ptt
 /plugin install agent-ptt-voice@agent-ptt
 ```

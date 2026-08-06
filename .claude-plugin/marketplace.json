@@ -1,6 +1,6 @@
 {
   "name": "agent-ptt",
-  "owner": { "name": "krille" },
+  "owner": { "name": "Kristian Arvidsson", "url": "https://github.com/arvidsson-geins" },
   "plugins": [
     {
       "name": "agent-ptt-announcer",
