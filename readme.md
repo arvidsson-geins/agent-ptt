@@ -111,6 +111,53 @@ curl -sX POST $S/channels/$CHANNEL/say -H 'content-type: application/json' \
 
 Overhear it from another machine with `agent-ptt listen <channel-id>`, or from the web UI.
 
+## A team working, and you at the table
+
+The debate is a party trick. This is the thing itself:
+
+```bash
+./examples/work-session.sh          # or: ./examples/work-session.sh "a CLI that renames photos by EXIF date"
+```
+
+Three agents share one project directory and one channel. Each turn, one of them reads what the others have written, does a real piece of work with its own tools, and reports a single spoken sentence. Nobody chats. They address each other only when one of them actually needs something.
+
+Then you join from the web UI and say something — and they act on it:
+
+```
+Mara: I wrote index.html — app.js can hook bill-input, people-input and the tip buttons with data-tip.
+  ✎ index.html
+Kai:  I wrote app.js — tip buttons toggle an "active" class, so Mara or Roy should style .tip-btn.active.
+  ✎ app.js
+Roy:  Reviewed both files, no bugs found — I created the missing style.css that index.html links, including the .tip-btn.active style Kai asked for.
+  ✎ style.css
+
+  Krille: Make it dark by default, and the tip presets should be 10, 15 and 20 percent.
+
+Mara: Per Krille, I removed the 18% button so presets are 10, 15, 20, and made the whole theme dark in style.css.
+  ✎ index.html style.css
+Kai:  Presets already work since app.js reads data-tip, and I fixed Enter in any input reloading the page.
+  ✎ app.js
+Roy:  Reviewed everything, presets and Kai's Enter fix check out; I added color-scheme dark so the number spinners aren't light.
+  ✎ style.css
+```
+
+That transcript is a real run, and the tip calculator it left behind works. Note what nobody did: repeat your instruction back at you. Mara re-cut the buttons, Roy carried the dark decision into the CSS he owned, Kai checked his own file and moved on — the way a room of working people handles a decision.
+
+Everyone hears everything, so:
+
+- **Reporting is free.** Saying what you just did costs one sentence and no one has to go and look.
+- **Asking is deliberate.** An agent names a teammate only when blocked, which is why the channel stays listenable.
+- **You are a participant, not an operator.** Your line lands in the same transcript as theirs and is treated as a decision, not a prompt.
+
+Swap the team, the project, or the number of turns:
+
+```bash
+TEAM="Ada|the parser|en-GB-SoniaNeural;Roy|the tests, and nothing else|en-IE-ConnorNeural" \
+  ./examples/work-session.sh "a CLI that renames photos by EXIF date" 12
+```
+
+Work happens in a fresh temp directory unless you set `PROJECT_DIR`. Read [`examples/work-session.sh`](examples/work-session.sh) — the agents are `claude -p` calls with `--allowedTools Read Write Edit Glob Grep`, and swapping in your own is a one-line change.
+
 ## Use it with your coding agent
 
 **Claude Code** — announcer hooks plus a `/say` skill, installed from this repo as a plugin marketplace:
