@@ -20,6 +20,10 @@
 # participation keys posting to the same channel over REST, which is all any
 # agent needs to join a conversation.
 #
+# Join the channel yourself — `agent-ptt join <id> --handle you`, or the Join
+# box in the web UI — and cut in at any time. Everyone on the panel answers
+# you by name before they go back to arguing with each other.
+#
 # Override the panel with PANEL="Name|persona|voice-id;Name|persona|voice-id",
 # and the channel with CHANNEL=<existing-channel-id>.
 # Drop the voice-id and the handle gets an auto-designed one instead.
@@ -62,29 +66,91 @@ for member in "${PANEL[@]}"; do
   HANDLES+=("$handle"); PERSONAS+=("$persona"); KEYS+=("$key")
 done
 
+PANEL_LIST=$(IFS=, ; echo "${HANDLES[*]}")
+
 echo "channel: $CHANNEL"
 echo "panel:   ${HANDLES[*]}"
 echo "listen:  agent-ptt listen $CHANNEL   (or open $SERVER/ui/)"
+echo "         join the channel and cut in — every panelist will answer you"
 echo
 
-# 3. One turn: read the transcript, think, speak.
-turn() { # $1=key  $2=handle  $3=persona
-  local transcript reply
-  transcript=$(curl -sS "$SERVER/channels/$CHANNEL/history" \
-    | jq -r '.[-6:][] | "\(.handle): \(.text)"')
+# A question from the room stays open until every panelist has answered it.
+# Without this only the next speaker in the rotation replies, and the rest
+# carry on with their own argument as if nobody had spoken.
+GUEST_ID="" GUEST_HANDLE="" GUEST_TEXT="" PENDING=" "
 
-  reply=$(claude -p "You are $2, on a panel discussing: $SUBJECT
-You are $3.
+is_panelist() {
+  local h="$1" x
+  for x in "${HANDLES[@]}"; do [ "$x" = "$h" ] && return 0; done
+  return 1
+}
+owes_the_room() { [[ "$PENDING" == *" $1 "* ]]; }
+answered_the_room() { PENDING="${PENDING/ $1 / }"; }
+
+# Reads the channel into TRANSCRIPT / LAST_ID / LAST_HANDLE, and picks up the
+# newest message from anyone who isn't on the panel.
+fetch_state() {
+  local json guest gid ghandle gtext
+  json=$(curl -sS "$SERVER/channels/$CHANNEL/history")
+  TRANSCRIPT=$(printf '%s' "$json" | jq -r '.[-8:][] | "\(.handle): \(.text)"')
+  LAST_ID=$(printf '%s' "$json" | jq -r '.[-1].message_id // ""')
+  LAST_HANDLE=$(printf '%s' "$json" | jq -r '.[-1].handle // ""')
+
+  guest=$(printf '%s' "$json" | jq -r --arg p "$PANEL_LIST" '
+    ($p | split(",")) as $panel
+    | [.[] | select(.handle as $h | ($panel | index($h)) == null)] | last
+    | if . == null then "" else [.message_id, .handle, .text] | @tsv end')
+  IFS=$'\t' read -r gid ghandle gtext <<<"$guest" || true
+
+  # A new question from the room puts every panelist back on the hook.
+  if [ -n "${gid:-}" ] && [ "$gid" != "$GUEST_ID" ]; then
+    GUEST_ID="$gid"; GUEST_HANDLE="$ghandle"; GUEST_TEXT="$gtext"
+    PENDING=" ${HANDLES[*]} "
+  fi
+}
+
+# 3. One turn: read the channel, think, speak. Anyone in the channel who isn't
+#    on the panel is a human in the room, and gets answered by everyone —
+#    including if they cut in while this turn was still thinking.
+turn() { # $1=key  $2=handle  $3=persona
+  local reply guest attempt pre_guest
+  for attempt in 1 2; do
+    fetch_state
+    pre_guest="$GUEST_ID"
+
+    guest=""
+    if [ -n "$GUEST_ID" ] && owes_the_room "$2"; then
+      guest="$GUEST_HANDLE is a human in the room, not a panelist, and said:
+  \"$GUEST_TEXT\"
+You have not answered that yet. Answer $GUEST_HANDLE directly and by name, in
+your own voice and from your own position — do not repeat what another
+panelist already told them — then go back to arguing with the panel."
+    fi
+
+    reply=$(claude -p "You are $2, on a panel discussing: $SUBJECT
+You are $3. The other panelists are: $PANEL_LIST.
+$guest
 
 Transcript so far:
-${transcript:-(nothing yet — you open the discussion)}
+${TRANSCRIPT:-(nothing yet — you open the discussion)}
 
 Reply with ONE spoken sentence of at most 25 words, in character. Answer the
 previous speaker directly and name them. Output the sentence only: no quotes,
 no preamble, no markdown, nothing that isn't meant to be heard." < /dev/null)
 
+    # Someone cut in while we were thinking — throw the answer away and think
+    # again with their words in front of us.
+    fetch_state
+    if [ "$attempt" -eq 1 ] && [ "$GUEST_ID" != "$pre_guest" ]; then
+      echo "  … $GUEST_HANDLE cut in, $2 is rethinking"
+      continue
+    fi
+    break
+  done
+
   reply=$(printf '%s' "$reply" | tr '\n' ' ' | tr -s ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   [ -n "$reply" ] || return 0
+  answered_the_room "$2"
 
   echo "$2: $reply"
   curl -sS -X POST "$SERVER/channels/$CHANNEL/say" \

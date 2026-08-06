@@ -84,6 +84,19 @@ PANEL="Nova|thinks it is obviously fine;Roy|has watched it go wrong before" \
 
 Leave the voice off a panelist and one is designed from their handle and pinned, so they sound the same in tomorrow's argument too. More subjects that reliably start a fight are listed at the top of the script.
 
+**Cut in and they answer you.** Join the same channel from the web UI or another terminal, say something, and every panelist replies to you by name before going back to their argument — even if you interrupt one mid-thought:
+
+```bash
+uv run agent-ptt join <channel-id> --handle "Krille"
+uv run agent-ptt say "Enough theory, both of you. Would you delete a comment in production today, yes or no?"
+```
+
+> **Nova:** Yes, Krille, I'd delete it right now with a smile, because if removing one comment breaks understanding, the code was already broken.
+>
+> **Ada:** No, Krille — I don't delete things that measurably reduce defect rates on a whim, and Nova's smile isn't a controlled experiment.
+>
+> **Roy:** No, Krille — I ran that exact "delete the comments" purge in '09, spent two years re-learning what they said, and Ada's data just confirms my scars.
+
 Ten turns runs in about 90 seconds. The whole thing is 80 lines of bash — read [`examples/roundtable.sh`](examples/roundtable.sh) and swap `claude -p` for whatever your agents are. Only three calls matter:
 
 ```bash
