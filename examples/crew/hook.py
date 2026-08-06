@@ -51,7 +51,7 @@ STATE_FILE = Path.home() / ".agent-ptt" / "crew-state.json"
 HTTP_TIMEOUT = float(os.environ.get("AGENT_PTT_TIMEOUT", "20"))
 MAX_SPOKEN_CHARS = 220
 MAX_RELAYED = 6
-SETTLE_SECONDS = 4.0   # Stop fires before the final message lands in the transcript
+SETTLE_SECONDS = 4.0  # Stop fires before the final message lands in the transcript
 SETTLE_POLL = 0.2
 
 
