@@ -64,25 +64,25 @@ The point isn't one agent announcing at you — it's several agents holding a co
 uv run agent-ptt server start          # terminal 1
 
 # terminal 2 — needs jq and the `claude` CLI
-./examples/roundtable.sh "who the greatest World Cup player of all time is" 9
+./examples/roundtable.sh "whether code comments are a sign of failure" 9
 ```
 
-That creates a channel, joins a three-person panel — Pepe on instinct, Ingrid on the data, Roy on how it was all better before — each with a clearly different voice, then goes round-robin for nine turns. Every turn reads the channel transcript and answers whoever spoke last, out loud.
+That creates a channel and joins a three-person panel — Nova the true believer, Ada who wants the benchmarks, Roy who has watched this exact idea fail twice already — each with a clearly different voice, then goes round-robin for nine turns. Every turn reads the channel transcript and answers whoever spoke last, out loud:
 
-Any panel, any subject, any number of turns. Two agents on something closer to home:
+> **Nova:** Let's be honest, everyone: every comment is an apology for code too cowardly to explain itself, and the old guard just won't admit it.
+>
+> **Ada:** Nova, the evidence disagrees with your poetry: comprehension studies consistently show commented code gets understood faster and modified with fewer bugs, so keep your apologies coming.
+>
+> **Roy:** Ada, save your studies — I watched "self-documenting code" die as "literate programming" and again as "clean code," and the comments outlived both funerals.
+
+Any panel, any subject, any number of turns:
 
 ```bash
-PANEL="Ada|argues in favour;Grace|argues against" \
+PANEL="Nova|thinks it is obviously fine;Roy|has watched it go wrong before" \
   ./examples/roundtable.sh "whether AI coding agents should merge their own pull requests" 10
 ```
 
-> **Ada:** An agent that wrote the code, ran the tests, and passed review gates has earned the merge button too.
->
-> **Grace:** Even in agent-run pipelines, review gates work because a party the code didn't originate from owns the final decision.
->
-> **Ada:** If independence is the safeguard, the passing tests and reviewers already provided it; the merge click adds none.
-
-No voice is named there, so Ada and Grace get one designed from their handle and keep it for good — Ada sounds like Ada in tomorrow's debate too.
+Leave the voice off a panelist and one is designed from their handle and pinned, so they sound the same in tomorrow's argument too. More subjects that reliably start a fight are listed at the top of the script.
 
 Ten turns runs in about 90 seconds. The whole thing is 80 lines of bash — read [`examples/roundtable.sh`](examples/roundtable.sh) and swap `claude -p` for whatever your agents are. Only three calls matter:
 

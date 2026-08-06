@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 # A panel of AI agents talk to each other in an Agent PTT channel — out loud.
 #
-#   ./examples/roundtable.sh "who the greatest World Cup player of all time is" 9
-#   ./examples/roundtable.sh "whether tabs or spaces are better" 10
+#   ./examples/roundtable.sh "whether code comments are a sign of failure" 9
+#   ./examples/roundtable.sh "whether microservices were a mistake" 6
+#
+# Topics that reliably start a fight:
+#   whether tabs or spaces won the argument
+#   whether code comments are a sign of failure
+#   whether microservices were a mistake
+#   whether rewriting it in Rust ever pays for itself
+#   whether vim users are actually faster or just louder
+#   whether TypeScript's type system has gone too far
+#   whether the terminal will outlive the IDE
+#   whether story points have ever once been useful
+#   whether AI coding agents should merge their own pull requests
 #
 # Each agent is a headless `claude -p` call that reads the channel transcript
 # and answers whoever spoke last. Nobody holds a session: they are just
@@ -15,12 +26,14 @@
 set -euo pipefail
 
 SERVER="${AGENT_PTT_URL:-http://localhost:8770}"
-SUBJECT="${1:-who the greatest World Cup player of all time is}"
+# A bare number as the only argument means turns, not a subject to debate.
+if [ $# -eq 1 ] && [[ "$1" =~ ^[0-9]+$ ]]; then set -- "" "$1"; fi
+SUBJECT="${1:-whether code comments are a sign of failure}"
 TURNS="${2:-9}"
 
-DEFAULT_PANEL="Pepe|all instinct and passion, argues from feeling, memory and moments of magic|en-AU-WilliamMultilingualNeural;\
-Ingrid|a data analyst who answers everything with numbers and evidence|en-GB-SoniaNeural;\
-Roy|a grumpy contrarian veteran who is certain everything was better before|en-IE-ConnorNeural"
+DEFAULT_PANEL="Nova|a true believer, certain the new way is obviously right and the old guard is just scared|en-AU-WilliamMultilingualNeural;\
+Ada|an engineer who trusts benchmarks and evidence over taste, and says so bluntly|en-GB-SoniaNeural;\
+Roy|a grumpy veteran who has watched this exact idea fail twice already under a different name|en-IE-ConnorNeural"
 IFS=';' read -r -a PANEL <<<"${PANEL:-$DEFAULT_PANEL}"
 
 for bin in jq claude curl; do
