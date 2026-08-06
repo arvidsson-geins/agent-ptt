@@ -1,17 +1,21 @@
 """Channel manager — create, join, send, leave.
 
-Channels are ephemeral (in-memory). Voice profiles and participation
-keys are persisted via the database layer.
+Channels live in memory while the server runs, and are mirrored to the
+database so a restart doesn't take the room down with it: on startup the
+server restores every channel, its participants and its transcript, and
+the keys agents are already holding keep working.
 """
 
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
 from agent_ptt.models import (
     Channel,
+    ChannelDB,
     Message,
     MessageDB,
     ParticipantKey,
@@ -31,11 +35,22 @@ _message_queues: dict[str, asyncio.Queue[Message]] = {}
 # ---------------------------------------------------------------------------
 
 
-def create_channel(name: str) -> Channel:
-    """Create a new named channel."""
+def create_channel(name: str, db: Session | None = None) -> Channel:
+    """Create a new named channel, persisting it if a session is provided."""
     channel = Channel(name=name)
     _channels[channel.channel_id] = channel
     _message_queues[channel.channel_id] = asyncio.Queue()
+
+    if db is not None:
+        db.merge(
+            ChannelDB(
+                channel_id=channel.channel_id,
+                name=channel.name,
+                created_at=channel.created_at,
+            )
+        )
+        db.commit()
+
     return channel
 
 
@@ -49,11 +64,79 @@ def get_channel(channel_id: str) -> Channel | None:
     return _channels.get(channel_id)
 
 
-def delete_channel(channel_id: str) -> bool:
+def delete_channel(channel_id: str, db: Session | None = None) -> bool:
     """Delete a channel. Returns True if it existed."""
     removed = _channels.pop(channel_id, None)
     _message_queues.pop(channel_id, None)
+
+    if db is not None:
+        row = db.get(ChannelDB, channel_id)
+        if row is not None:
+            db.delete(row)
+            db.commit()
+
     return removed is not None
+
+
+def restore_channels(db: Session) -> list[Channel]:
+    """Rebuild the in-memory registry from the database.
+
+    Called once on startup. Participants are restored with the keys they
+    were issued, so an agent that joined before the restart can carry on
+    posting without noticing it happened.
+    """
+    restored: list[Channel] = []
+
+    for row in db.query(ChannelDB).order_by(ChannelDB.created_at).all():
+        if row.channel_id in _channels:
+            continue
+
+        channel = Channel(
+            channel_id=row.channel_id,
+            name=row.name,
+            created_at=_as_utc(row.created_at),
+        )
+
+        for key_row in (
+            db.query(ParticipantKeyDB).filter(ParticipantKeyDB.channel_id == row.channel_id).all()
+        ):
+            channel.participants[key_row.key_id] = ParticipantKey(
+                key_id=key_row.key_id,
+                handle=key_row.handle,
+                voice_id=key_row.voice_id,
+                channel_id=key_row.channel_id,
+                created_at=_as_utc(key_row.created_at),
+            )
+
+        for msg_row in (
+            db.query(MessageDB)
+            .filter(MessageDB.channel_id == row.channel_id)
+            .order_by(MessageDB.timestamp)
+            .all()
+        ):
+            channel.messages.append(
+                Message(
+                    message_id=msg_row.message_id,
+                    channel_id=msg_row.channel_id,
+                    sender_key=msg_row.sender_key,
+                    handle=msg_row.handle,
+                    text=msg_row.text,
+                    timestamp=_as_utc(msg_row.timestamp),
+                )
+            )
+
+        _channels[channel.channel_id] = channel
+        _message_queues[channel.channel_id] = asyncio.Queue()
+        restored.append(channel)
+
+    return restored
+
+
+def _as_utc(value: datetime | None) -> datetime:
+    """SQLite hands back naive datetimes; they were always UTC."""
+    if value is None:
+        return datetime.now(UTC)
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------

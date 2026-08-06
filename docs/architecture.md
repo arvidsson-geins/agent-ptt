@@ -41,10 +41,11 @@ Uses the `sqlalchemy-libsql` dialect so the same code works with both.
 
 ### `agent_ptt/channel.py`
 
-In-memory channel registry. Channels are **ephemeral** — they exist while the server runs and are gone when it stops.
+In-memory channel registry, mirrored to the database. Channels live in memory while the server runs; on startup `restore_channels()` brings back every channel with its participants and transcript, so a restart doesn't drop the room — and the keys agents are already holding keep working.
 
 Key functions:
-- `create_channel()` / `delete_channel()` — lifecycle
+- `create_channel()` / `delete_channel()` — lifecycle (persisted when given a DB session)
+- `restore_channels()` — rebuild the registry from the DB on startup
 - `join_channel()` / `leave_channel()` — participation
 - `send_message()` — broadcasts text + queues for TTS
 - `get_history()` — returns in-memory message list

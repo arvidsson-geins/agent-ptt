@@ -14,13 +14,24 @@ The file is created automatically on first server start in the working directory
 
 | Table | Data | Survives Restart |
 |-------|------|-----------------|
+| `channels` | Channels (ID, name) — restored into memory on startup | ✅ |
 | `voice_profiles` | Voice configurations (ID, name, engine, settings) | ✅ |
 | `participant_keys` | Agent identities (key, handle, voice, channel) | ✅ |
 | `messages` | Message archive (sender, text, timestamp) | ✅ |
 
-Channels themselves are **ephemeral** — they only exist in memory while the server runs.
+A restart is invisible to participants: the server reloads its channels, their participants and their transcripts on startup, so a key issued before the restart still posts afterwards.
+
+Only live connections are lost — WebSocket spectators reconnect, and audio already queued for playback is dropped.
 
 ## Schema
+
+### `channels`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `channel_id` | TEXT (PK) | UUID |
+| `name` | TEXT | Channel name |
+| `created_at` | DATETIME | Creation time (UTC) |
 
 ### `voice_profiles`
 

@@ -73,7 +73,11 @@ def no_real_llm_designer(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def clean_state():
-    """Reset all module-level in-memory registries between tests."""
+    """Reset in-memory registries and persisted rows between tests.
+
+    Channels are persisted now, so clearing memory alone would leak them
+    into the next test through the restore-on-startup path.
+    """
     yield
     channel._channels.clear()
     channel._message_queues.clear()
@@ -84,6 +88,11 @@ def clean_state():
     for mixer in audio._mixers.values():
         mixer.stop()
     audio._mixers.clear()
+    init_db()
+    with SessionLocal() as cleanup:
+        for table in reversed(Base.metadata.sorted_tables):
+            cleanup.execute(table.delete())
+        cleanup.commit()
 
 
 @pytest.fixture

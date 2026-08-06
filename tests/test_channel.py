@@ -1,5 +1,7 @@
 """Channel manager — lifecycle, participants, messaging."""
 
+import asyncio
+
 from agent_ptt import channel as ch
 from agent_ptt.models import MessageDB
 
@@ -90,3 +92,53 @@ async def test_send_message_persists(db_session):
 
 def test_get_history_unknown_channel():
     assert ch.get_history("nonexistent") == []
+
+
+# ---------------------------------------------------------------------------
+# Surviving a restart
+# ---------------------------------------------------------------------------
+
+
+def test_restore_channels_brings_back_room_participants_and_transcript(db_session):
+    created = ch.create_channel("War Room", db=db_session)
+    key = ch.join_channel(created.channel_id, "Ada", "en-GB-SoniaNeural", db=db_session)
+    asyncio.run(ch.send_message(key.key_id, "Tabs win and you know it.", db=db_session))
+
+    # The server goes down: everything in memory is gone.
+    ch._channels.clear()
+    ch._message_queues.clear()
+    assert ch.get_channel(created.channel_id) is None
+
+    restored = ch.restore_channels(db_session)
+
+    assert [c.channel_id for c in restored] == [created.channel_id]
+    assert ch.get_channel(created.channel_id).name == "War Room"
+    # The key Ada is still holding keeps working.
+    assert ch.get_participant(key.key_id).handle == "Ada"
+    assert [m.text for m in ch.get_history(created.channel_id)] == ["Tabs win and you know it."]
+    assert ch.get_message_queue(created.channel_id) is not None
+
+
+def test_restore_channels_is_idempotent(db_session):
+    created = ch.create_channel("Room", db=db_session)
+    assert ch.restore_channels(db_session) == []
+    assert ch.get_channel(created.channel_id) is not None
+
+
+def test_restored_transcript_timestamps_stay_utc(db_session):
+    created = ch.create_channel("Room", db=db_session)
+    key = ch.join_channel(created.channel_id, "Ada", db=db_session)
+    asyncio.run(ch.send_message(key.key_id, "hello", db=db_session))
+
+    ch._channels.clear()
+    ch._message_queues.clear()
+    ch.restore_channels(db_session)
+
+    assert ch.get_history(created.channel_id)[0].timestamp.tzinfo is not None
+
+
+def test_delete_channel_removes_the_persisted_row(db_session):
+    created = ch.create_channel("Doomed", db=db_session)
+    assert ch.delete_channel(created.channel_id, db=db_session) is True
+
+    assert ch.restore_channels(db_session) == []

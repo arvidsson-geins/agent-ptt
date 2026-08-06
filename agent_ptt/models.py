@@ -66,6 +66,16 @@ class PinnedVoiceDB(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
+class ChannelDB(Base):
+    """Persisted channel — so a restart doesn't orphan its transcript."""
+
+    __tablename__ = "channels"
+
+    channel_id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+
 class MessageDB(Base):
     """Optional message archive — for history retrieval after restart."""
 

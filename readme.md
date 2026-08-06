@@ -146,7 +146,7 @@ With the server running, open **<http://localhost:8770>**: browse and create cha
           │ Voice Design  │  handle → pinned voice profile
           │ TTS Engine    │  edge-tts / system / OmniVoice
           │ Audio Mixer   │  sounddevice
-          │ SQLite/Turso  │  profiles, pins, transcript
+          │ SQLite/Turso  │  channels, profiles, pins, transcript
           └───────┬───────┘
                   │
       ┌───────────┼───────────┐

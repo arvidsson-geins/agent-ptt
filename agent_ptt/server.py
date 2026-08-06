@@ -107,8 +107,14 @@ def _stop_tts_worker(channel_id: str) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database on startup."""
+    """Initialize the database and bring back the channels we left running."""
     init_db()
+    with SessionLocal() as db:
+        restored = ch.restore_channels(db)
+    for channel in restored:
+        _start_tts_worker(channel.channel_id)
+    if restored:
+        logger.info(f"🎙️  Restored {len(restored)} channel(s) from the database")
     logger.info("🎙️  Agent PTT server started")
     yield
     # Cleanup
@@ -167,9 +173,9 @@ class SayRequest(BaseModel):
 
 
 @app.post("/channels")
-async def create_channel(req: CreateChannelRequest):
+async def create_channel(req: CreateChannelRequest, db: Session = Depends(get_db)):
     """Create a new voice channel."""
-    channel = ch.create_channel(req.name)
+    channel = ch.create_channel(req.name, db=db)
     _start_tts_worker(channel.channel_id)
     return channel.model_dump()
 

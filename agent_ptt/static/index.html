@@ -223,6 +223,7 @@
           <button id="sayBtn">Send 🔊</button>
           <button id="leaveBtn" class="ghost">Leave</button>
         </div>
+        <div class="hint" id="composeHint" style="display:none"></div>
       </div>
     </main>
   </div>
@@ -318,6 +319,8 @@
     $("listenBtn").disabled = false;
     $("joinBtn").disabled = false;
     $("audioPill").style.display = "";
+    hint("");
+    restoreJoin(id);
     location.hash = id;
     loadChannels();
     startPolling();
@@ -420,6 +423,40 @@
   }
 
   // ---- Join & say (participate) -------------------------------------------
+
+  // A join is a participation key, not a browser session. Keep it, so a page
+  // reload doesn't quietly leave you sitting in a channel unable to talk.
+  const JOIN_STORE = "agent-ptt.join";
+  function rememberJoin() {
+    try {
+      localStorage.setItem(JOIN_STORE, JSON.stringify({
+        channelId: state.channelId, keyId: state.keyId,
+        handle: state.handle, voice: $("voice").value || null,
+      }));
+    } catch {}
+  }
+  function savedJoin() {
+    try { return JSON.parse(localStorage.getItem(JOIN_STORE) || "null"); } catch { return null; }
+  }
+  function forgetJoin() {
+    try { localStorage.removeItem(JOIN_STORE); } catch {}
+  }
+  function restoreJoin(channelId) {
+    const saved = savedJoin();
+    if (!saved || saved.channelId !== channelId || !saved.keyId) return;
+    state.keyId = saved.keyId;
+    state.handle = saved.handle;
+    $("joinRow").style.display = "none";
+    $("sayRow").style.display = "flex";
+    $("joinedAs").textContent = `● ${saved.handle}`;
+  }
+
+  function hint(msg) {
+    const el = $("composeHint");
+    el.textContent = msg || "";
+    el.style.display = msg ? "" : "none";
+  }
+
   async function loadVoices() {
     try {
       const r = await fetch(httpBase + "/voices");
@@ -461,29 +498,58 @@
       $("sayRow").style.display = "flex";
       $("joinedAs").textContent = `● ${handle}`;
       $("sayText").focus();
+      rememberJoin();
+      hint("");
       loadChannels();
     } catch (e) {
-      alert("Join failed: " + e.message);
+      hint("Join failed: " + e.message);
     } finally {
       $("joinBtn").disabled = false;
       $("joinBtn").textContent = "Join";
     }
   }
 
-  async function say() {
-    const text = $("sayText").value.trim();
-    if (!text || !state.keyId) return;
-    $("sayText").value = "";
+  function postSay(text) {
+    return fetch(`${httpBase}/channels/${state.channelId}/say`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key_id: state.keyId, text }),
+    });
+  }
+
+  // The channel forgot our key — the server was reinstalled, or the channel
+  // was deleted and remade. Claim the same handle again and carry on.
+  async function rejoin() {
+    const saved = savedJoin();
+    if (!saved || !saved.handle) return false;
     try {
-      const r = await fetch(`${httpBase}/channels/${state.channelId}/say`, {
+      const r = await fetch(`${httpBase}/channels/${state.channelId}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key_id: state.keyId, text }),
+        body: JSON.stringify({ handle: saved.handle, voice_id: saved.voice || null }),
       });
+      if (!r.ok) return false;
+      state.keyId = (await r.json()).key_id;
+      state.handle = saved.handle;
+      rememberJoin();
+      return true;
+    } catch { return false; }
+  }
+
+  async function say() {
+    const text = $("sayText").value.trim();
+    if (!text) return;
+    if (!state.channelId) { hint("Pick a channel first."); return; }
+    if (!state.keyId) { hint("Join the channel first — enter a handle and press Join."); return; }
+    $("sayText").value = "";
+    try {
+      let r = await postSay(text);
+      if (r.status === 404 && await rejoin()) r = await postSay(text);
       if (!r.ok) throw new Error(await r.text());
+      hint("");
       pollHistory();
     } catch (e) {
-      alert("Send failed: " + e.message);
+      hint("Send failed: " + e.message + " — is the server still running?");
       $("sayText").value = text;
     }
   }
@@ -494,6 +560,7 @@
         await fetch(`${httpBase}/channels/${state.channelId}/leave?key_id=${encodeURIComponent(state.keyId)}`, { method: "POST" });
       } catch {}
     }
+    forgetJoin();
     resetJoin();
     loadChannels();
   }
@@ -537,8 +604,19 @@
     if (hash) {
       try {
         const r = await fetch(`${httpBase}/channels/${hash}`);
-        if (r.ok) { const c = await r.json(); selectChannel(c.channel_id, c.name); }
-      } catch {}
+        if (r.ok) {
+          const c = await r.json();
+          selectChannel(c.channel_id, c.name);
+        } else {
+          $("chTitle").textContent = "Channel not found";
+          $("chId").textContent = hash;
+          hint(ok ? "That channel no longer exists — pick one from the list."
+                  : "Server offline — start it with: uv run agent-ptt server start");
+        }
+      } catch {
+        $("chTitle").textContent = "Channel not found";
+        hint("Server offline — start it with: uv run agent-ptt server start");
+      }
     }
     setInterval(checkServer, 5000);
     setInterval(() => { if (!state.channelId) loadChannels(); }, 3000);
